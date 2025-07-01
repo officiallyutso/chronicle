@@ -164,7 +164,7 @@ ${fileEvents.length > 0 ? `The files you worked on include: ${fileEvents.map(e =
 Keep up the great work!`;
     }
   }
-
+/////mock achievements as a fail safe
   private generateMockAchievements(events: ActivityEvent[]): string[] {
     const achievements = [];
     

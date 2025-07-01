@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityEvent, ActivityType } from '../services/systemTracker';
+import { ActivityEvent, ActivityType } from '../services/types';
 
 interface ActivityFeedProps {
   events: ActivityEvent[];
@@ -17,6 +17,8 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
       case ActivityType.TERMINAL_COMMAND: return '';
       case ActivityType.BROWSER_SEARCH: return '';
       case ActivityType.VSCODE_ACTION: return '';
+      case ActivityType.SYSTEM_ACTIVE: return '';
+      case ActivityType.SYSTEM_IDLE: return '';
       default: return '';
     }
   };
@@ -29,6 +31,8 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
       case ActivityType.TERMINAL_COMMAND: return 'border-purple-500 bg-purple-500/10';
       case ActivityType.BROWSER_SEARCH: return 'border-yellow-500 bg-yellow-500/10';
       case ActivityType.VSCODE_ACTION: return 'border-cyan-500 bg-cyan-500/10';
+      case ActivityType.SYSTEM_ACTIVE: return 'border-gray-500 bg-gray-500/10';
+      case ActivityType.SYSTEM_IDLE: return 'border-orange-500 bg-orange-500/10';
       default: return 'border-gray-500 bg-gray-500/10';
     }
   };
@@ -36,18 +40,40 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
   const formatEventData = (event: ActivityEvent) => {
     switch (event.type) {
       case ActivityType.APP_OPENED:
-        return `Opened ${event.data.appName}`;
+        return `Opened ${event.data.appName}${event.data.platform ? ` on ${event.data.platform}` : ''}`;
       case ActivityType.APP_CLOSED:
-        return `Closed ${event.data.appName}`;
+        return `Closed ${event.data.appName}${event.data.platform ? ` on ${event.data.platform}` : ''}`;
       case ActivityType.FILE_CHANGED:
-        return `${event.data.action} ${event.data.fileName} in ${event.data.directory}`;
+        return `${event.data.action} ${event.data.fileName || event.data.fullPath}${event.data.directory ? ` in ${event.data.directory}` : ''}`;
       case ActivityType.TERMINAL_COMMAND:
-        return `Executed: ${event.data.command}`;
+        return `Executed: ${event.data.command}${event.data.shell ? ` (${event.data.shell})` : ''}`;
       case ActivityType.BROWSER_SEARCH:
-        return `Searched: ${event.data.query}`;
+        if (event.data.query) {
+          return `Searched: ${event.data.query}`;
+        } else if (event.data.url) {
+          return `${event.data.action || 'Visited'}: ${event.data.url}${event.data.title ? ` - ${event.data.title}` : ''}`;
+        }
+        return `Browser: ${event.data.action}`;
       case ActivityType.VSCODE_ACTION:
-        return `VS Code: ${event.data.action} in ${event.data.file}`;
+        return `VS Code: ${event.data.action} → ${event.data.file}${event.data.project ? ` (${event.data.project})` : ''}`;
+      case ActivityType.SYSTEM_ACTIVE:
+        if (event.data.action === 'events_cleared') {
+          return 'Events cleared by user';
+        }
+        if (event.data.uptime !== undefined) {
+          return `System: uptime ${Math.floor(event.data.uptime / 60)}min, ${event.data.cpuCount} CPUs, ${(event.data.freeMemory / 1e9).toFixed(1)}GB free`;
+        }
+        return `System activity detected`;
+      case ActivityType.SYSTEM_IDLE:
+        return `System went idle${event.data.idleTime ? ` (${Math.floor(event.data.idleTime)}s)` : ''}`;
       default:
+        // Handle any custom events or fallback
+        if (typeof event.data === 'object' && event.data !== null) {
+          const keys = Object.keys(event.data);
+          if (keys.length > 0) {
+            return keys.map(key => `${key}: ${event.data[key]}`).join(', ');
+          }
+        }
         return JSON.stringify(event.data);
     }
   };
@@ -90,7 +116,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
             <option value="all">All Events</option>
             {eventTypes.map(type => (
               <option key={type} value={type}>
-                {type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
               </option>
             ))}
           </select>
@@ -119,7 +145,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-medium text-white">
-                      {event.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      {event.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </h3>
                     <time className="text-xs text-gray-400">
                       {new Date(event.timestamp).toLocaleString()}
@@ -130,7 +156,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
                   </p>
                   <div className="flex items-center space-x-4 text-xs text-gray-500">
                     <span>Category: {event.category}</span>
-                    <span>ID: {event.id}</span>
+                    <span>ID: {event.id.split('_')[0]}...{event.id.slice(-6)}</span>
                   </div>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { SystemTracker, ActivityEvent, ActivityType } from './services/systemTracker';
+import { ActivityEvent, ActivityType } from './services/types';
+import { ApiService, ApiStats } from './services/apiService';
 import { OllamaService, NarrativeStyle } from './services/ollamaService';
 import { Dashboard } from './components/Dashboard';
 import { ActivityFeed } from './components/ActivityFeed';
@@ -7,41 +8,87 @@ import { NarrativePanel } from './components/NarrativePanel';
 import { SettingsPanel } from './components/SettingsPanel';
 
 const App: React.FC = () => {
-  const [tracker] = useState(() => new SystemTracker());
+  const [apiService] = useState(() => new ApiService());
   const [ollamaService] = useState(() => new OllamaService());
   const [events, setEvents] = useState<ActivityEvent[]>([]);
-  const [isTracking, setIsTracking] = useState(false);
+  const [stats, setStats] = useState<ApiStats>({
+    total: 0,
+    applications: 0,
+    filesModified: 0,
+    terminalCommands: 0,
+    sessionDuration: 0,
+    isTracking: false
+  });
   const [currentNarrative, setCurrentNarrative] = useState<string>('');
   const [achievements, setAchievements] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'activity' | 'narrative' | 'settings'>('dashboard');
   const [narrativeStyle, setNarrativeStyle] = useState<NarrativeStyle>({ tone: 'gamified', format: 'story' });
   const [isGenerating, setIsGenerating] = useState(false);
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
+  const [backendConnected, setBackendConnected] = useState(false);
 
   useEffect(() => {
-    (async () => {
+    // Check if backend is available
+    const checkBackend = async () => {
+      const healthy = await apiService.checkHealth();
+      setBackendConnected(healthy);
+      if (!healthy) {
+        console.warn('Chronicle backend is not available. Make sure the server is running on port 3001.');
+      }
+    };
+
+    // Check if Ollama is available
+    const checkOllama = async () => {
       const available = await ollamaService.isOllamaAvailable();
       setOllamaAvailable(available);
-    })();
+    };
 
-    tracker.onEvent((event) => {
+    // Load initial data
+    const loadInitialData = async () => {
+      const initialEvents = await apiService.getEvents({ limit: 100 });
+      setEvents(initialEvents);
+      
+      const initialStats = await apiService.getStats();
+      setStats(initialStats);
+    };
+
+    // Set up real-time event listener
+    apiService.onEvent((event) => {
       setEvents(prev => [...prev, event]);
+      // Update stats when new events come in
+      refreshStats();
     });
 
-    return () => {
-      tracker.stopTracking();
+    const refreshStats = async () => {
+      const newStats = await apiService.getStats();
+      setStats(newStats);
     };
-  }, []);
 
+    // Initialize everything
+    checkBackend();
+    checkOllama();
+    loadInitialData();
 
-  const handleStartTracking = () => {
-    tracker.startTracking();
-    setIsTracking(true);
+    // Cleanup on unmount
+    return () => {
+      apiService.disconnect();
+    };
+  }, [apiService, ollamaService]);
+
+  const handleStartTracking = async () => {
+    const success = await apiService.startTracking();
+    if (success) {
+      const newStats = await apiService.getStats();
+      setStats(newStats);
+    }
   };
 
-  const handleStopTracking = () => {
-    tracker.stopTracking();
-    setIsTracking(false);
+  const handleStopTracking = async () => {
+    const success = await apiService.stopTracking();
+    if (success) {
+      const newStats = await apiService.getStats();
+      setStats(newStats);
+    }
   };
 
   const handleGenerateNarrative = async () => {
@@ -56,30 +103,22 @@ const App: React.FC = () => {
       setAchievements(newAchievements);
     } catch (error) {
       console.error('Error generating narrative:', error);
+      // You might want to show a toast/notification here
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleClearData = () => {
-    setEvents([]);
-    setCurrentNarrative('');
-    setAchievements([]);
+  const handleClearData = async () => {
+    const success = await apiService.clearEvents();
+    if (success) {
+      setEvents([]);
+      setCurrentNarrative('');
+      setAchievements([]);
+      const newStats = await apiService.getStats();
+      setStats(newStats);
+    }
   };
-
-  const getEventStats = () => {
-    const stats = {
-      total: events.length,
-      applications: new Set(events.filter(e => e.type === ActivityType.APP_OPENED).map(e => e.data.appName)).size,
-      filesModified: events.filter(e => e.type === ActivityType.FILE_CHANGED).length,
-      terminalCommands: events.filter(e => e.type === ActivityType.TERMINAL_COMMAND).length,
-      sessionDuration: events.length > 0 ? 
-        Math.round((events[events.length - 1].timestamp - events[0].timestamp) / 1000 / 60) : 0
-    };
-    return stats;
-  };
-
-  const stats = getEventStats();
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -91,11 +130,17 @@ const App: React.FC = () => {
               Chronicle
             </h1>
             <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${isTracking ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <div className={`w-2 h-2 rounded-full ${stats.isTracking ? 'bg-green-500' : 'bg-red-500'}`}></div>
               <span className="text-sm text-gray-400">
-                {isTracking ? 'Tracking Active' : 'Tracking Inactive'}
+                {stats.isTracking ? 'Tracking Active' : 'Tracking Inactive'}
               </span>
             </div>
+            {!backendConnected && (
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                <span className="text-sm text-red-400">Backend Offline</span>
+              </div>
+            )}
           </div>
           
           <div className="flex items-center space-x-4">
@@ -107,18 +152,37 @@ const App: React.FC = () => {
               )}
             </div>
             <button
-              onClick={isTracking ? handleStopTracking : handleStartTracking}
+              onClick={stats.isTracking ? handleStopTracking : handleStartTracking}
+              disabled={!backendConnected}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                isTracking 
-                  ? 'bg-red-600 hover:bg-red-700 text-white' 
-                  : 'bg-green-600 hover:bg-green-700 text-white'
+                !backendConnected
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : stats.isTracking 
+                    ? 'bg-red-600 hover:bg-red-700 text-white' 
+                    : 'bg-green-600 hover:bg-green-700 text-white'
               }`}
             >
-              {isTracking ? 'Stop Tracking' : 'Start Tracking'}
+              {stats.isTracking ? 'Stop Tracking' : 'Start Tracking'}
             </button>
           </div>
         </div>
       </header>
+
+      {/* Backend Connection Warning */}
+      {!backendConnected && (
+        <div className="bg-red-600/20 border-l-4 border-red-500 p-4 mx-6 mt-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <span className="text-red-400">⚠️</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-300">
+                Chronicle backend is not running. Please start the backend server on port 3001 to enable real system tracking.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="bg-gray-800 border-b border-gray-700">
