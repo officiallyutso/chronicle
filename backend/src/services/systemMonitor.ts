@@ -208,17 +208,54 @@ export class SystemMonitor extends EventEmitter {
       path.join(os.homedir(), 'Downloads')
     ];
 
+    // Directories to exclude from monitoring
+    const excludeDirs = [
+      'node_modules',
+      '.git',
+      '.next',
+      'dist',
+      'build',
+      '.vscode',
+      '.idea',
+      'coverage',
+      '.nyc_output',
+      'tmp',
+      'temp',
+      '.cache',
+      'logs',
+      '.DS_Store',
+      'Thumbs.db'
+    ];
+
     watchDirs.forEach(dir => {
       if (fs.existsSync(dir)) {
         try {
           const watcher = fs.watch(dir, { recursive: true }, (eventType, filename) => {
             if (!this.tracking || !filename) return;
 
+            // Skip if file is in excluded directories
+            const shouldExclude = excludeDirs.some(excludeDir => 
+              filename.includes(excludeDir + path.sep) || 
+              filename.startsWith(excludeDir + path.sep) ||
+              filename === excludeDir
+            );
+
+            if (shouldExclude) {
+              return; // Skip this file change
+            }
+
             const fullPath = path.join(dir, filename);
             const ext = path.extname(filename);
-            const devExtensions = ['.js', '.ts', '.tsx', '.jsx', '.py', '.java', '.cpp', '.c', '.html', '.css', '.scss', '.json', '.md', '.txt', '.yml', '.yaml'];
+            
+            // Only track development-related file extensions
+            const devExtensions = [
+              '.js', '.ts', '.tsx', '.jsx', '.py', '.java', '.cpp', '.c', 
+              '.html', '.css', '.scss', '.sass', '.less', '.json', '.md', 
+              '.txt', '.yml', '.yaml', '.xml', '.php', '.rb', '.go', '.rs',
+              '.vue', '.svelte', '.sql', '.sh', '.bat', '.ps1', '.dockerfile'
+            ];
 
-            if (devExtensions.includes(ext)) {
+            if (devExtensions.includes(ext.toLowerCase())) {
               this.emitEvent({
                 type: ActivityType.FILE_CHANGED,
                 data: {
