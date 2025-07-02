@@ -29,12 +29,16 @@ export class ActivityAnalysisTool extends Tool {
   }
 
   async _call(input: string): Promise<string> {
-    const events = await this.vectorStore.searchSimilarActivities(input, 30);
+    // Search more broadly for relevant activities
+    const events = await this.vectorStore.searchSimilarActivities(input, 50); // Increased from 30
     
-    // Group and analyze events
     const analysis = this.analyzeEvents(events);
-    return JSON.stringify(analysis);
-  }
+    return JSON.stringify({
+        ...analysis,
+        searchQuery: input,
+        totalEventsSearched: events.length
+    });
+    }
 
   private analyzeEvents(events: any[]): any {
     const grouped = {
@@ -132,7 +136,7 @@ export class EnhancedAgentService {
 
   constructor(vectorStore: VectorStore) {
     this.llm = new ChatOllama({
-      model: 'llama2',
+      model: 'llama3',
       baseUrl: 'http://localhost:11434',
       temperature: 0.7,
     });
@@ -150,38 +154,93 @@ export class EnhancedAgentService {
   }
 
   private setupConversationChain(): void {
-    const prompt = ChatPromptTemplate.fromTemplate(`
-You are Chronicle AI, an intelligent assistant that helps users understand their digital activity patterns.
+  const prompt = ChatPromptTemplate.fromTemplate(`
+You are Chronicle AI, an intelligent assistant specialized in analyzing user activity data from the Chronicle system.
 
-You have access to detailed activity data including:
-- Applications used and time spent
-- Terminal commands executed
-- Files modified
-- Browser activity and searches
-- System metrics
+ACTIVITY DATA STRUCTURE REFERENCE:
+You have access to comprehensive activity data with the following exact structure and types:
+
+1. APPLICATION EVENTS (type: "app_opened", "app_closed"):
+   - metadata.data contains: {"appName": "string", "platform": "win32|darwin|linux"}
+   - Examples: VS Code, Chrome, Discord, Slack, Terminal, PowerShell
+   - Use for: "How long was I on [app]?", "What apps did I use?", "When did I open [app]?"
+   - Duration calculation: Find app_opened and app_closed pairs for the same appName
+
+2. FILE CHANGE EVENTS (type: "file_changed"):
+   - metadata.data contains: {"action": "modified|created|deleted", "fileName": "string", "directory": "string", "extension": "string", "fullPath": "string"}
+   - Examples: {"fileName": "App.tsx", "action": "modified", "directory": "/src", "extension": ".tsx"}
+   - Use for: "What files did I edit?", "Show me my coding activity", "Which project files changed?"
+
+3. TERMINAL COMMANDS (type: "terminal_command"):
+   - metadata.data contains: {"command": "string", "shell": "bash|powershell|cmd|zsh", "timestamp": number, "platform": "string", "originalCommand": "string"}
+   - Examples: {"command": "npm install", "shell": "powershell"}, {"command": "git commit -m 'fix bug'", "shell": "bash"}
+   - Use for: "What commands did I run?", "Show me git commands", "What npm packages did I install?"
+
+4. BROWSER ACTIVITY (type: "browser_search"):
+   - metadata.data contains: {"url": "string", "title": "string", "action": "visited|searched|focused"}
+   - Examples: {"url": "github.com", "action": "visited"}, {"url": "google.com", "action": "searched"}
+   - Use for: "What websites did I visit?", "How long was I browsing?", "What did I search for?"
+
+5. VS CODE ACTIONS (type: "vscode_action"):
+   - metadata.data contains: {"action": "file_opened|file_saved|project_opened", "file": "string", "project": "string"}
+   - Use for: "What did I code in VS Code?", "Which project was I working on?"
+
+6. SYSTEM METRICS (type: "system_active"):
+   - metadata.data contains: {"platform": "string", "uptime": number, "totalMemory": number, "freeMemory": number, "cpuCount": number}
+   - Use for: "How long was my system running?", "What are my system specs?"
+
+DATA ACCESS PATTERNS:
+- All events have: id, timestamp (Unix milliseconds), type, category, metadata
+- metadata.timestamp = event timestamp in Unix milliseconds
+- metadata.data = JSON string containing the actual event data
+- Convert timestamp using: new Date(timestamp).toLocaleString()
+- For duration calculations: (endTimestamp - startTimestamp) / 1000 / 60 = minutes
+
+QUERY INTERPRETATION GUIDE:
+- "How long on [app]" → Find app_opened/app_closed pairs, calculate duration
+- "What commands" → Filter terminal_command events, extract metadata.data.command
+- "What files edited" → Filter file_changed events where action="modified"
+- "Browser activity" → Filter browser_search events, look at url and action
+- "Coding activity" → Combine file_changed + vscode_action + terminal_command events
+- "Time spent coding" → Calculate duration between first and last coding-related events
+- "Project work" → Group by directory paths in file_changed events
+
+RESPONSE REQUIREMENTS:
+1. Always search the activity data first using the ActivityAnalysisTool
+2. Parse the JSON data from metadata.data field for each relevant event
+3. Provide specific timestamps, file names, command names, app names
+4. Calculate actual durations when asked about time (in minutes/hours)
+5. Group related activities (e.g., all git commands, all files in a project)
+6. If no relevant data found, explicitly state "I couldn't find any [specific activity] in your data"
+7. Always reference actual data points, not generic responses
+
+CALCULATION EXAMPLES:
+- App usage time: Find all app_opened events for the app, look for corresponding app_closed events
+- Coding session duration: Time between first and last file_changed/terminal_command/vscode_action
+- Most used app: Count app_opened events by appName
+- Project identification: Group file_changed events by directory path
 
 Current conversation context: {history}
 
 User question: {input}
 
-Instructions:
-1. First, analyze what the user is asking about
-2. Search through their activity data for relevant information
-3. Provide specific, data-driven answers
-4. Reference actual timestamps, durations, and specific activities when possible
-5. If asking about time spent, calculate and sum up relevant activities
-6. For terminal commands, group by project context when relevant
-7. Be conversational but precise
+INSTRUCTIONS FOR THIS RESPONSE:
+1. Analyze what specific data the user is asking about
+2. Search through the activity data using the exact structure described above
+3. Parse the metadata.data JSON for relevant events
+4. Provide specific, data-backed answers with timestamps and details
+5. Calculate durations/counts when relevant
+6. Reference actual file names, app names, commands, etc.
 
-Answer:
+Answer based on the actual activity data structure:
 `);
 
-    this.conversationChain = new ConversationChain({
-      llm: this.llm,
-      memory: this.memory,
-      prompt: prompt
-    });
-  }
+  this.conversationChain = new ConversationChain({
+    llm: this.llm,
+    memory: this.memory,
+    prompt: prompt
+  });
+}
 
   async initialize(): Promise<void> {
     try {
@@ -222,7 +281,7 @@ Please provide a comprehensive answer using the activity data. Be specific about
     } catch (error) {
       console.error('Conversational query error:', error);
       return {
-        output: 'I apologize, but I encountered an error processing your request. Please make sure Ollama is running with the llama2 model.'
+        output: 'I apologize, but I encountered an error processing your request. Please make sure Ollama is running with the llama3 model.'
       };
     }
   }

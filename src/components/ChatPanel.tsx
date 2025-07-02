@@ -22,31 +22,36 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ backendConnected }) => {
   }, [messages]);
 
   useEffect(() => {
-    loadChatHistory();
-  }, []);
+    if (backendConnected) {
+        loadChatHistory();
+    }
+  }, [backendConnected]);
 
   const loadChatHistory = async () => {
     const history = await chatService.getChatHistory();
-    // Convert LangChain message format to our format
+    
+    // Convert LangChain message format to our format and keep only last 6 messages
     const convertedMessages: ChatMessage[] = [];
-    for (let i = 0; i < history.length; i += 2) {
-      if (history[i] && history[i + 1]) {
+    const recentHistory = history.slice(-6); // Get last 6 messages (3 exchanges)
+    
+    for (let i = 0; i < recentHistory.length; i += 2) {
+        if (recentHistory[i] && recentHistory[i + 1]) {
         convertedMessages.push({
-          id: `user_${i}`,
-          type: 'user',
-          content: history[i].content,
-          timestamp: Date.now() - (history.length - i) * 1000
+            id: `user_${Date.now()}_${i}`,
+            type: 'user',
+            content: recentHistory[i].content,
+            timestamp: Date.now() - (recentHistory.length - i) * 1000
         });
         convertedMessages.push({
-          id: `assistant_${i}`,
-          type: 'assistant',
-          content: history[i + 1].content,
-          timestamp: Date.now() - (history.length - i - 1) * 1000
+            id: `assistant_${Date.now()}_${i}`,
+            type: 'assistant',
+            content: recentHistory[i + 1].content,
+            timestamp: Date.now() - (recentHistory.length - i - 1) * 1000
         });
-      }
+        }
     }
     setMessages(convertedMessages);
-  };
+    };
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading || !backendConnected) return;

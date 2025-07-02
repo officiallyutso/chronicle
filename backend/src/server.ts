@@ -180,7 +180,7 @@ Create an engaging story that highlights the developer's journey, accomplishment
     return response.output;
   } catch (error) {
     console.error('Narrative generation error:', error);
-    return 'Unable to generate narrative. Please ensure Ollama is running with the llama2 model.';
+    return 'Unable to generate narrative. Please ensure Ollama is running with the llama3 model.';
   }
 }
 
