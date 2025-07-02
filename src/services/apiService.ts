@@ -10,7 +10,7 @@ export interface ApiStats {
 }
 
 export class ApiService {
-  private baseUrl: string;
+  protected baseUrl: string;
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;

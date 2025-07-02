@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ActivityEvent, ActivityType } from './services/types';
-import { ApiService, ApiStats } from './services/apiService';
+import { AgentApiService } from './services/agentApiService';
+import { ApiStats } from './services/apiService';
 import { OllamaService, NarrativeStyle } from './services/ollamaService';
 import { Dashboard } from './components/Dashboard';
 import { ActivityFeed } from './components/ActivityFeed';
@@ -8,7 +9,7 @@ import { NarrativePanel } from './components/NarrativePanel';
 import { SettingsPanel } from './components/SettingsPanel';
 
 const App: React.FC = () => {
-  const [apiService] = useState(() => new ApiService());
+  const [agentApiService] = useState(() => new AgentApiService());
   const [ollamaService] = useState(() => new OllamaService());
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [stats, setStats] = useState<ApiStats>({
@@ -26,11 +27,14 @@ const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
   const [backendConnected, setBackendConnected] = useState(false);
+  const [agentResponse, setAgentResponse] = useState<string>('');
+  const [isQuerying, setIsQuerying] = useState(false);
+
 
   useEffect(() => {
     // Check if backend is available
     const checkBackend = async () => {
-      const healthy = await apiService.checkHealth();
+      const healthy = await agentApiService.checkHealth();
       setBackendConnected(healthy);
       if (!healthy) {
         console.warn('Chronicle backend is not available. Make sure the server is running on port 3001.');
@@ -45,22 +49,22 @@ const App: React.FC = () => {
 
     // Load initial data
     const loadInitialData = async () => {
-      const initialEvents = await apiService.getEvents({ limit: 100 });
+      const initialEvents = await agentApiService.getEvents({ limit: 100 });
       setEvents(initialEvents);
       
-      const initialStats = await apiService.getStats();
+      const initialStats = await agentApiService.getStats();
       setStats(initialStats);
     };
 
     // Set up real-time event listener
-    apiService.onEvent((event) => {
+    agentApiService.onEvent((event) => {
       setEvents(prev => [...prev, event]);
       // Update stats when new events come in
       refreshStats();
     });
 
     const refreshStats = async () => {
-      const newStats = await apiService.getStats();
+      const newStats = await agentApiService.getStats();
       setStats(newStats);
     };
 
@@ -71,51 +75,49 @@ const App: React.FC = () => {
 
     // Cleanup on unmount
     return () => {
-      apiService.disconnect();
+      agentApiService.disconnect();
     };
-  }, [apiService, ollamaService]);
+  }, [agentApiService, ollamaService]);
 
   const handleStartTracking = async () => {
-    const success = await apiService.startTracking();
+    const success = await agentApiService.startTracking();
     if (success) {
-      const newStats = await apiService.getStats();
+      const newStats = await agentApiService.getStats();
       setStats(newStats);
     }
   };
 
   const handleStopTracking = async () => {
-    const success = await apiService.stopTracking();
+    const success = await agentApiService.stopTracking();
     if (success) {
-      const newStats = await apiService.getStats();
+      const newStats = await agentApiService.getStats();
       setStats(newStats);
     }
   };
 
   const handleGenerateNarrative = async () => {
     if (events.length === 0) return;
-    
     setIsGenerating(true);
     try {
-      const narrative = await ollamaService.generateNarrative(events, narrativeStyle);
+      const narrative = await agentApiService.generateIntelligentNarrative(narrativeStyle);
       setCurrentNarrative(narrative);
-      
       const newAchievements = await ollamaService.generateAchievements(events);
       setAchievements(newAchievements);
     } catch (error) {
       console.error('Error generating narrative:', error);
-      // You might want to show a toast/notification here
     } finally {
       setIsGenerating(false);
     }
   };
 
+
   const handleClearData = async () => {
-    const success = await apiService.clearEvents();
+    const success = await agentApiService.clearEvents();
     if (success) {
       setEvents([]);
       setCurrentNarrative('');
       setAchievements([]);
-      const newStats = await apiService.getStats();
+      const newStats = await agentApiService.getStats();
       setStats(newStats);
     }
   };

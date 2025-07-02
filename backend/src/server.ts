@@ -3,6 +3,9 @@ import cors from 'cors';
 import WebSocket from 'ws';
 import http from 'http';
 import { ActivityEvent, ActivityType, SystemMonitor } from './services/systemMonitor';
+import { VectorStore } from './services/vectorStore';
+import { AgentService } from './services/agentService';
+
 
 const app = express();
 const server = http.createServer(app);
@@ -54,10 +57,33 @@ function broadcastEvent(event: ActivityEvent) {
   });
 }
 
+
+// Initialize AI services
+const vectorStore = new VectorStore();
+const agentService = new AgentService(vectorStore);
+
+async function initializeAIServices() {
+  try {
+    await vectorStore.initialize();
+    await agentService.initialize();
+    console.log('AI services initialized');
+  } catch (error) {
+    console.error('Failed to initialize AI services:', error);
+  }
+}
+
+
 // Handle system events
-systemMonitor.onEvent((event) => {
+systemMonitor.onEvent(async (event) => {
   events.push(event);
   broadcastEvent(event);
+
+  // Store in vector database
+  try {
+    await vectorStore.storeActivityEvent(event);
+  } catch (error) {
+    console.error('Failed to store event in vector database:', error);
+  }
 
   // Pretty console logging for each activity type
   switch (event.type) {
@@ -87,6 +113,40 @@ systemMonitor.onEvent((event) => {
       break;
   }
 });
+
+
+// AI endpoints
+app.post('/api/ai/query', async (req, res) => {
+  try {
+    const { query } = req.body;
+    const result = await agentService.processQuery(query);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to process AI query' });
+  }
+});
+
+app.post('/api/ai/narrative', async (req, res) => {
+  try {
+    const { style } = req.body;
+    const recentEvents = events.slice(-50);
+    const narrative = await agentService.generateNarrative(recentEvents, style);
+    res.json({ narrative });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate narrative' });
+  }
+});
+
+app.get('/api/ai/search', async (req, res) => {
+  try {
+    const { query, limit = 10 } = req.query;
+    const results = await vectorStore.searchSimilarActivities(query as string, parseInt(limit as string));
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to search activities' });
+  }
+});
+
 
 // REST API: Get all events
 app.get('/api/events', (req, res) => {
@@ -198,10 +258,13 @@ app.get('/api/health', (req, res) => {
 // Start the HTTP + WS server
 const PORT = process.env.PORT || 3001;
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`Chronicle Backend Server running on port ${PORT}`);
   console.log(`WebSocket server at ws://localhost:${PORT}`);
-
+  
+  // Initialize AI services
+  await initializeAIServices();
+  
   // Auto-start tracking
   systemMonitor.startTracking();
 });
