@@ -146,9 +146,9 @@ const App: React.FC = () => {
           <div className="flex items-center space-x-4">
             <div className="text-sm text-gray-400">
               {ollamaAvailable ? (
-                <span className="text-green-400">Ollama Connected</span>
+                <span className="text-green-400">AI Agent Connected</span>
               ) : (
-                <span className="text-yellow-400">Ollama Offline</span>
+                <span className="text-yellow-400">AI Agent Offline</span>
               )}
             </div>
             <button

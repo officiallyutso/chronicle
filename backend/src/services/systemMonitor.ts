@@ -32,6 +32,8 @@ export class SystemMonitor extends EventEmitter {
   private watchers: fs.FSWatcher[] = [];
   private lastActiveApps = new Set<string>();
   private platform = os.platform();
+  private lastCommandHashes = new Set<string>();
+  private terminalProcesses = new Map<number, string>();
 
   constructor() {
     super();
@@ -49,7 +51,7 @@ export class SystemMonitor extends EventEmitter {
     this.startAppMonitoring();
     this.startFileSystemMonitoring();
     this.startSystemMetricsMonitoring();
-    this.startTerminalMonitoring();
+    this.startEnhancedTerminalMonitoring();
   }
 
   public stopTracking(): void {
@@ -252,7 +254,173 @@ export class SystemMonitor extends EventEmitter {
     return metrics;
   }
 
-  private startTerminalMonitoring(): void {
+  private startEnhancedTerminalMonitoring(): void {
+    console.log('Starting enhanced terminal monitoring...');
+    
+    // Method 1: Process monitoring for terminal commands
+    this.startProcessMonitoring();
+    
+    // Method 2: Enhanced history file monitoring
+    this.startHistoryFileMonitoring();
+    
+    // Method 3: PowerShell history for Windows
+    if (this.platform === 'win32') {
+      this.startPowerShellHistoryMonitoring();
+    }
+  }
+
+  private startProcessMonitoring(): void {
+    const interval = setInterval(async () => {
+      if (!this.tracking) return;
+      try {
+        await this.monitorActiveTerminalProcesses();
+      } catch (error) {
+        console.error('Error monitoring terminal processes:', error);
+      }
+    }, 2000); // Check every 2 seconds
+
+    this.intervals.push(interval);
+  }
+
+  private async monitorActiveTerminalProcesses(): Promise<void> {
+    try {
+      let processCommand = '';
+      
+      switch (this.platform) {
+        case 'win32':
+          // Monitor Windows processes with command lines
+          processCommand = 'wmic process get ProcessId,CommandLine,Name /format:csv | findstr /v "^$"';
+          break;
+        case 'darwin':
+          // Monitor macOS processes
+          processCommand = 'ps -eo pid,ppid,comm,args | grep -E "(python|pip|npm|node|git|docker)" | grep -v grep';
+          break;
+        case 'linux':
+          // Monitor Linux processes
+          processCommand = 'ps -eo pid,ppid,comm,args | grep -E "(python|pip|npm|node|git|docker)" | grep -v grep';
+          break;
+      }
+
+      if (processCommand) {
+        const { stdout } = await execAsync(processCommand);
+        this.parseProcessOutput(stdout);
+      }
+    } catch (error) {
+      // Silent fail for process monitoring
+    }
+  }
+
+  private parseProcessOutput(output: string): void {
+    const lines = output.split('\n').filter(line => line.trim());
+    
+    lines.forEach(line => {
+      try {
+        if (this.platform === 'win32') {
+          // Parse Windows CSV output
+          const parts = line.split(',');
+          if (parts.length >= 3) {
+            const commandLine = parts[1]?.trim();
+            const processName = parts[2]?.trim();
+            const pid = parts[3]?.trim();
+            
+            if (commandLine && processName && pid) {
+              // First check if it's a relevant command before storing
+              if (this.isRelevantCommand(commandLine)) {
+                const pidNum = parseInt(pid);
+                if (!this.terminalProcesses.has(pidNum)) {
+                  this.terminalProcesses.set(pidNum, commandLine);
+                  this.emitTerminalCommand(commandLine, 'cmd/powershell');
+                }
+              }
+            }
+          }
+        } else {
+          // Parse Unix-style output
+          const match = line.match(/^\s*(\d+)\s+(\d+)\s+(\S+)\s+(.+)$/);
+          if (match) {
+            const [, pid, ppid, comm, args] = match;
+            const fullCommand = args.trim();
+            
+            if (this.isRelevantCommand(fullCommand)) {
+              const pidNum = parseInt(pid);
+              if (!this.terminalProcesses.has(pidNum)) {
+                this.terminalProcesses.set(pidNum, fullCommand);
+                this.emitTerminalCommand(fullCommand, comm);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        // Skip malformed lines
+      }
+    });
+    
+    // Clean up old processes periodically
+    if (this.terminalProcesses.size > 100) {
+      const oldEntries = Array.from(this.terminalProcesses.entries()).slice(0, 50);
+      oldEntries.forEach(([pid]) => this.terminalProcesses.delete(pid));
+    }
+  }
+
+  private isRelevantCommand(command: string): boolean {
+    if (!command || command.trim().length === 0) return false;
+    
+    const commandLower = command.toLowerCase().trim();
+    
+    // Filter out system processes and internal operations
+    const systemProcessFilters = [
+      'smartscreen.exe',
+      'openconsole.exe',
+      'windowsterminal.exe',
+      'conhost.exe',
+      'dwm.exe',
+      'explorer.exe',
+      'taskhostw.exe',
+      'svchost.exe',
+      'system32',
+      'program files',
+      'windows\\',
+      'appdata\\local\\programs',
+      'windowsapps',
+      '-embedding',
+      'c:\\windows',
+      'microsoft.windowsterminal',
+      os.hostname().toLowerCase()
+    ];
+    
+    // Skip if it contains any system process indicators
+    if (systemProcessFilters.some(filter => commandLower.includes(filter))) {
+      return false;
+    }
+    
+    // Skip if it's a full file path without actual command
+    if (commandLower.match(/^"?[a-z]:\\.*\.exe"?\s*(-\w+\s*)*$/)) {
+      return false;
+    }
+    
+    // Define relevant user commands we want to capture
+    const relevantCommands = [
+      'pip', 'python', 'node', 'npm', 'npx', 'git', 'docker', 
+      'yarn', 'pnpm', 'curl', 'wget', 'make', 'cargo', 'go',
+      'mvn', 'gradle', 'ng', 'vue', 'react', 'next', 'cd', 'ls',
+      'dir', 'mkdir', 'rmdir', 'del', 'copy', 'move', 'cls', 'clear',
+      'cat', 'nano', 'vim', 'code', 'touch', 'grep', 'find', 'ssh',
+      'scp', 'rsync', 'tar', 'zip', 'unzip', 'chmod', 'chown'
+    ];
+    
+    // Check if command starts with or contains relevant commands
+    const hasRelevantCommand = relevantCommands.some(cmd => {
+      return commandLower.startsWith(cmd + ' ') || 
+             commandLower.startsWith(cmd + '.exe') ||
+             commandLower === cmd ||
+             (commandLower.includes(' ' + cmd + ' ')) ||
+             (commandLower.includes(' ' + cmd + '.exe'))
+    });
+    
+    return hasRelevantCommand;
+  }
+
+  private startHistoryFileMonitoring(): void {
     const historyFiles = [
       path.join(os.homedir(), '.bash_history'),
       path.join(os.homedir(), '.zsh_history'),
@@ -263,42 +431,154 @@ export class SystemMonitor extends EventEmitter {
       if (fs.existsSync(historyFile)) {
         try {
           let lastSize = fs.statSync(historyFile).size;
+          let lastReadTime = Date.now();
 
-          fs.watchFile(historyFile, (curr, prev) => {
+          const checkForUpdates = () => {
             if (!this.tracking) return;
 
-            if (curr.size > lastSize) {
-              const stream = fs.createReadStream(historyFile, {
+            try {
+              const stats = fs.statSync(historyFile);
+              if (stats.size > lastSize && Date.now() - lastReadTime > 1000) {
+                const stream = fs.createReadStream(historyFile, {
+                  start: lastSize,
+                  end: stats.size
+                });
+
+                let data = '';
+                stream.on('data', chunk => data += chunk);
+                stream.on('end', () => {
+                  const newCommands = data.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0 && !line.startsWith('#'))
+                    .filter(line => this.isRelevantCommand(line));
+
+                  newCommands.forEach(command => {
+                    const commandHash = this.hashCommand(command);
+                    if (!this.lastCommandHashes.has(commandHash)) {
+                      this.lastCommandHashes.add(commandHash);
+                      this.emitTerminalCommand(command, path.basename(historyFile).replace('_history', '').replace('.', ''));
+                    }
+                  });
+                });
+
+                lastSize = stats.size;
+                lastReadTime = Date.now();
+              }
+            } catch (error) {
+              console.error(`Error checking history file ${historyFile}:`, error);
+            }
+          };
+
+          // Check every 2 seconds
+          const interval = setInterval(checkForUpdates, 2000);
+          this.intervals.push(interval);
+
+        } catch (error) {
+          console.error(`Error setting up monitoring for ${historyFile}:`, error);
+        }
+      }
+    });
+  }
+
+  private startPowerShellHistoryMonitoring(): void {
+    const psHistoryPath = path.join(
+      os.homedir(),
+      'AppData',
+      'Roaming',
+      'Microsoft',
+      'Windows',
+      'PowerShell',
+      'PSReadLine',
+      'ConsoleHost_history.txt'
+    );
+
+    if (fs.existsSync(psHistoryPath)) {
+      try {
+        let lastSize = fs.statSync(psHistoryPath).size;
+
+        const checkPsHistory = () => {
+          if (!this.tracking) return;
+
+          try {
+            const stats = fs.statSync(psHistoryPath);
+            if (stats.size > lastSize) {
+              const stream = fs.createReadStream(psHistoryPath, {
                 start: lastSize,
-                end: curr.size
+                end: stats.size
               });
 
               let data = '';
               stream.on('data', chunk => data += chunk);
               stream.on('end', () => {
-                const newCommands = data.split('\n').filter(line => line.trim());
+                const newCommands = data.split('\n')
+                  .map(line => line.trim())
+                  .filter(line => line.length > 0)
+                  .filter(line => this.isRelevantCommand(line));
+
                 newCommands.forEach(command => {
-                  if (command.trim()) {
-                    this.emitEvent({
-                      type: ActivityType.TERMINAL_COMMAND,
-                      data: {
-                        command: command.trim(),
-                        shell: path.basename(historyFile).replace('_history', '').replace('.', ''),
-                        timestamp: Date.now()
-                      },
-                      category: 'terminal'
-                    });
+                  const commandHash = this.hashCommand(command);
+                  if (!this.lastCommandHashes.has(commandHash)) {
+                    this.lastCommandHashes.add(commandHash);
+                    this.emitTerminalCommand(command, 'powershell');
                   }
                 });
               });
 
-              lastSize = curr.size;
+              lastSize = stats.size;
             }
-          });
-        } catch (error) {
-          console.error(`Error monitoring history file ${historyFile}:`, error);
-        }
+          } catch (error) {
+            // Silent fail
+          }
+        };
+
+        const interval = setInterval(checkPsHistory, 2000);
+        this.intervals.push(interval);
+
+      } catch (error) {
+        console.error('Error setting up PowerShell history monitoring:', error);
       }
-    });
+    }
+  }
+
+  private hashCommand(command: string): string {
+    return Buffer.from(command + Date.now().toString()).toString('base64').substring(0, 16);
+  }
+
+  private emitTerminalCommand(command: string, shell: string): void {
+    // Clean the command to extract just the user-typed part
+    let cleanCommand = command.trim();
+    
+    // Remove hostname references
+    cleanCommand = cleanCommand.replace(new RegExp(os.hostname(), 'gi'), '').trim();
+    
+    // Extract simple command from complex paths
+    if (cleanCommand.includes('.exe')) {
+      // For commands like: "C:\...\pip.exe" install numpy
+      // Extract: pip install numpy
+      const match = cleanCommand.match(/([^\\\/]+\.exe)(.*)$/i);
+      if (match) {
+        const execName = match[1].replace('.exe', '').replace(/"/g, '');
+        const args = match[2].trim();
+        cleanCommand = args ? `${execName} ${args}` : execName;
+      }
+    }
+    
+    // Remove quotes and extra spaces
+    cleanCommand = cleanCommand.replace(/^["']|["']$/g, '').replace(/\s+/g, ' ').trim();
+    
+    // Final validation - must have actual content and be a real command
+    if (cleanCommand.length > 0 && !cleanCommand.includes('\\') && !cleanCommand.includes('-Embedding')) {
+      this.emitEvent({
+        type: ActivityType.TERMINAL_COMMAND,
+        data: {
+          command: cleanCommand,
+          originalCommand: command,
+          shell: shell,
+          timestamp: Date.now(),
+          platform: this.platform
+        },
+        category: 'terminal'
+      });
+    }
   }
 }

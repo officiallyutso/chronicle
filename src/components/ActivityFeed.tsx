@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ActivityEvent, ActivityType } from '../services/types';
 
 interface ActivityFeedProps {
@@ -8,20 +8,26 @@ interface ActivityFeedProps {
 export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
   const [filter, setFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [displayLimit, setDisplayLimit] = useState(50);
 
-  const getEventIcon = (type: ActivityType) => {
-    switch (type) {
-      case ActivityType.APP_OPENED: return '';
-      case ActivityType.APP_CLOSED: return '';
-      case ActivityType.FILE_CHANGED: return '';
-      case ActivityType.TERMINAL_COMMAND: return '';
-      case ActivityType.BROWSER_SEARCH: return '';
-      case ActivityType.VSCODE_ACTION: return '';
-      case ActivityType.SYSTEM_ACTIVE: return '';
-      case ActivityType.SYSTEM_IDLE: return '';
-      default: return '';
+  // Sort events by timestamp (latest first) and memoize
+  const sortedEvents = useMemo(() => {
+    if (!events || events.length === 0) return [];
+    
+    // Remove duplicates based on ID and timestamp
+    const uniqueEvents = events.filter((event, index, self) => 
+      index === self.findIndex(e => e.id === event.id)
+    );
+    
+    return uniqueEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [events]);
+
+  // Reset display limit when new events come in to show latest 50
+  useEffect(() => {
+    if (events.length > 0) {
+      setDisplayLimit(Math.min(50, events.length));
     }
-  };
+  }, [events.length]);
 
   const getEventColor = (type: ActivityType) => {
     switch (type) {
@@ -67,7 +73,6 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
       case ActivityType.SYSTEM_IDLE:
         return `System went idle${event.data.idleTime ? ` (${Math.floor(event.data.idleTime)}s)` : ''}`;
       default:
-        // Handle any custom events or fallback
         if (typeof event.data === 'object' && event.data !== null) {
           const keys = Object.keys(event.data);
           if (keys.length > 0) {
@@ -78,19 +83,64 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
     }
   };
 
-  const filteredEvents = events
-    .filter(event => {
-      if (filter === 'all') return true;
-      return event.type === filter;
-    })
-    .filter(event => {
-      if (!searchTerm) return true;
-      const eventText = formatEventData(event).toLowerCase();
-      return eventText.includes(searchTerm.toLowerCase());
-    })
-    .reverse(); // Show newest first
+  // Apply filters and search, then limit display
+  const filteredAndLimitedEvents = useMemo(() => {
+    let filtered = sortedEvents;
 
-  const eventTypes = Array.from(new Set(events.map(e => e.type)));
+    // Apply type filter
+    if (filter !== 'all') {
+      filtered = filtered.filter(event => event.type === filter);
+    }
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(event => {
+        const eventText = formatEventData(event).toLowerCase();
+        const eventType = event.type.replace(/_/g, ' ').toLowerCase();
+        const eventCategory = event.category.toLowerCase();
+        
+        return eventText.includes(searchLower) || 
+               eventType.includes(searchLower) || 
+               eventCategory.includes(searchLower);
+      });
+    }
+
+    // Apply display limit
+    return filtered.slice(0, displayLimit);
+  }, [sortedEvents, filter, searchTerm, displayLimit]);
+
+  // Get unique event types for filter dropdown
+  const eventTypes = useMemo(() => {
+    return Array.from(new Set(sortedEvents.map(e => e.type)));
+  }, [sortedEvents]);
+
+  const handleLoadMore = () => {
+    setDisplayLimit(prev => prev + 50);
+  };
+
+  const totalFilteredCount = useMemo(() => {
+    let filtered = sortedEvents;
+    
+    if (filter !== 'all') {
+      filtered = filtered.filter(event => event.type === filter);
+    }
+    
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(event => {
+        const eventText = formatEventData(event).toLowerCase();
+        const eventType = event.type.replace(/_/g, ' ').toLowerCase();
+        const eventCategory = event.category.toLowerCase();
+        
+        return eventText.includes(searchLower) || 
+               eventType.includes(searchLower) || 
+               eventCategory.includes(searchLower);
+      });
+    }
+    
+    return filtered.length;
+  }, [sortedEvents, filter, searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -125,23 +175,22 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
         {/* Event Count */}
         <div className="mb-4">
           <p className="text-gray-400 text-sm">
-            Showing {filteredEvents.length} of {events.length} events
+            Showing {filteredAndLimitedEvents.length} of {totalFilteredCount} filtered events 
+            ({sortedEvents.length} total)
           </p>
         </div>
       </div>
 
       {/* Activity List */}
       <div className="space-y-3">
-        {filteredEvents.length > 0 ? (
-          filteredEvents.map((event) => (
+        {filteredAndLimitedEvents.length > 0 ? (
+          filteredAndLimitedEvents.map((event) => (
             <div
               key={event.id}
               className={`bg-gray-800 rounded-lg p-4 border ${getEventColor(event.type)} transition-all hover:bg-gray-750`}
             >
               <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0">
-                  <span className="text-2xl">{getEventIcon(event.type)}</span>
-                </div>
+                <div className="flex-shrink-0 w-4 h-4 rounded-full border-2 border-current mt-1"></div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-medium text-white">
@@ -164,10 +213,12 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
           ))
         ) : (
           <div className="bg-gray-800 rounded-lg p-12 border border-gray-700 text-center">
-            <div className="text-4xl mb-4"></div>
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-700 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border-2 border-gray-500"></div>
+            </div>
             <h3 className="text-lg font-medium text-white mb-2">No Activities Found</h3>
             <p className="text-gray-400">
-              {events.length === 0 
+              {sortedEvents.length === 0 
                 ? "Start tracking to see your activities here"
                 : "Try adjusting your search or filter criteria"
               }
@@ -176,11 +227,14 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ events }) => {
         )}
       </div>
 
-      {/* Load More Button (for future pagination) */}
-      {filteredEvents.length > 50 && (
+      {/* Load More Button */}
+      {totalFilteredCount > filteredAndLimitedEvents.length && (
         <div className="text-center">
-          <button className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors">
-            Load More Events
+          <button 
+            onClick={handleLoadMore}
+            className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Load More Events ({totalFilteredCount - filteredAndLimitedEvents.length} remaining)
           </button>
         </div>
       )}
