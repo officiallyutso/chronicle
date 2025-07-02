@@ -4,8 +4,7 @@ import WebSocket from 'ws';
 import http from 'http';
 import { ActivityEvent, ActivityType, SystemMonitor } from './services/systemMonitor';
 import { VectorStore } from './services/vectorStore';
-import { AgentService } from './services/agentService';
-
+import { EnhancedAgentService } from './services/agentService'; // Import the new service
 
 const app = express();
 const server = http.createServer(app);
@@ -57,21 +56,19 @@ function broadcastEvent(event: ActivityEvent) {
   });
 }
 
-
 // Initialize AI services
 const vectorStore = new VectorStore();
-const agentService = new AgentService(vectorStore);
+const enhancedAgentService = new EnhancedAgentService(vectorStore); // Use new service
 
 async function initializeAIServices() {
   try {
     await vectorStore.initialize();
-    await agentService.initialize();
+    await enhancedAgentService.initialize();
     console.log('AI services initialized');
   } catch (error) {
     console.error('Failed to initialize AI services:', error);
   }
 }
-
 
 // Handle system events
 systemMonitor.onEvent(async (event) => {
@@ -114,12 +111,11 @@ systemMonitor.onEvent(async (event) => {
   }
 });
 
-
-// AI endpoints
+// Updated AI endpoints
 app.post('/api/ai/query', async (req, res) => {
   try {
     const { query } = req.body;
-    const result = await agentService.processQuery(query);
+    const result = await enhancedAgentService.processConversationalQuery(query); // Use new method
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Failed to process AI query' });
@@ -130,13 +126,65 @@ app.post('/api/ai/narrative', async (req, res) => {
   try {
     const { style } = req.body;
     const recentEvents = events.slice(-50);
-    const narrative = await agentService.generateNarrative(recentEvents, style);
+    // Create a simple narrative method for backward compatibility
+    const narrative = await generateSimpleNarrative(recentEvents, style);
     res.json({ narrative });
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate narrative' });
   }
 });
 
+// Add new chat endpoints
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const { message } = req.body;
+    const result = await enhancedAgentService.processConversationalQuery(message);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to process chat message' });
+  }
+});
+
+app.get('/api/ai/chat/history', async (req, res) => {
+  try {
+    const history = await enhancedAgentService.getChatHistory();
+    res.json(history);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get chat history' });
+  }
+});
+
+app.delete('/api/ai/chat/history', async (req, res) => {
+  try {
+    await enhancedAgentService.clearChatHistory();
+    res.json({ success: true, message: 'Chat history cleared' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to clear chat history' });
+  }
+});
+
+// Simple narrative generation for backward compatibility
+async function generateSimpleNarrative(events: ActivityEvent[], style: any): Promise<string> {
+  const eventSummary = events.slice(-20).map(e =>
+    `${e.type}: ${JSON.stringify(e.data)}`
+  ).join('\n');
+
+  const prompt = `Generate a ${style.tone} ${style.format} narrative based on these recent development activities:
+
+${eventSummary}
+
+Create an engaging story that highlights the developer's journey, accomplishments, and work patterns. Make it ${style.tone} in tone and format it as a ${style.format}.`;
+
+  try {
+    const response = await enhancedAgentService.processConversationalQuery(prompt);
+    return response.output;
+  } catch (error) {
+    console.error('Narrative generation error:', error);
+    return 'Unable to generate narrative. Please ensure Ollama is running with the llama2 model.';
+  }
+}
+
+// Keep all your existing endpoints (getEvents, getStats, etc.)
 app.get('/api/ai/search', async (req, res) => {
   try {
     const { query, limit = 10 } = req.query;
@@ -146,7 +194,6 @@ app.get('/api/ai/search', async (req, res) => {
     res.status(500).json({ error: 'Failed to search activities' });
   }
 });
-
 
 // REST API: Get all events
 app.get('/api/events', (req, res) => {
@@ -183,7 +230,6 @@ app.get('/api/stats', (req, res) => {
       : 0,
     isTracking: systemMonitor.isTracking()
   };
-
   res.json(stats);
 });
 
@@ -214,7 +260,6 @@ app.delete('/api/events', (req, res) => {
 // VS Code extension input
 app.post('/api/extensions/vscode', (req, res) => {
   const { action, file, project } = req.body;
-
   const event: ActivityEvent = {
     id: `vscode_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     timestamp: Date.now(),
@@ -231,7 +276,6 @@ app.post('/api/extensions/vscode', (req, res) => {
 // Browser extension input
 app.post('/api/extensions/browser', (req, res) => {
   const { url, title, action } = req.body;
-
   const event: ActivityEvent = {
     id: `browser_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     timestamp: Date.now(),
@@ -257,14 +301,13 @@ app.get('/api/health', (req, res) => {
 
 // Start the HTTP + WS server
 const PORT = process.env.PORT || 3001;
-
 server.listen(PORT, async () => {
   console.log(`Chronicle Backend Server running on port ${PORT}`);
   console.log(`WebSocket server at ws://localhost:${PORT}`);
-  
+
   // Initialize AI services
   await initializeAIServices();
-  
+
   // Auto-start tracking
   systemMonitor.startTracking();
 });
