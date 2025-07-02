@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+# ChromaDB data
+my_chroma_data/
+chroma_data/
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal

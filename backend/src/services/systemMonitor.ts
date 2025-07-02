@@ -35,6 +35,47 @@ export class SystemMonitor extends EventEmitter {
   private lastCommandHashes = new Set<string>();
   private terminalProcesses = new Map<number, string>();
 
+  private isSystemProcess(appName: string): boolean {
+    const systemProcesses = [
+      'WMIC.exe',
+      'wmic.exe', 
+      'cmd.exe',
+      'conhost.exe',
+      'dwm.exe',
+      'winlogon.exe',
+      'csrss.exe',
+      'smss.exe',
+      'svchost.exe',
+      'lsass.exe',
+      'services.exe',
+      'spoolsv.exe',
+      'explorer.exe',
+      'taskhostw.exe',
+      'RuntimeBroker.exe',
+      'SearchUI.exe',
+      'ShellExperienceHost.exe',
+      'StartMenuExperienceHost.exe',
+      'SecurityHealthSystray.exe',
+      'audiodg.exe',
+      'fontdrvhost.exe',
+      'WmiPrvSE.exe',
+      'dllhost.exe',
+      'backgroundTaskHost.exe',
+      'ApplicationFrameHost.exe',
+      'SystemSettings.exe',
+      'SettingSyncHost.exe',
+      'UserOOBEBroker.exe',
+      'LockApp.exe',
+      'WinStore.App.exe',
+      'smartscreen.exe',
+      'MsMpEng.exe', // Windows Defender
+      'NisSrv.exe'   // Windows Defender Network Inspection
+    ];
+    return systemProcesses.some(sysProcess => 
+      appName.toLowerCase() === sysProcess.toLowerCase()
+    );
+  }
+
   constructor() {
     super();
     console.log(`SystemMonitor initialized for ${this.platform}`);
@@ -79,12 +120,21 @@ export class SystemMonitor extends EventEmitter {
   private startAppMonitoring(): void {
     const interval = setInterval(async () => {
       if (!this.tracking) return;
-
       try {
         const currentApps = await this.getCurrentApplications();
-
-        currentApps.forEach(app => {
-          if (!this.lastActiveApps.has(app)) {
+        
+        // Filter out system processes
+        const filteredCurrentApps = new Set(
+          Array.from(currentApps).filter(app => !this.isSystemProcess(app))
+        );
+      
+        
+        const filteredLastApps = new Set(
+          Array.from(this.lastActiveApps).filter(app => !this.isSystemProcess(app))
+        );
+        
+        filteredCurrentApps.forEach(app => {
+          if (!filteredLastApps.has(app)) {
             this.emitEvent({
               type: ActivityType.APP_OPENED,
               data: { appName: app, platform: this.platform },
@@ -93,8 +143,8 @@ export class SystemMonitor extends EventEmitter {
           }
         });
 
-        this.lastActiveApps.forEach(app => {
-          if (!currentApps.has(app)) {
+        filteredLastApps.forEach(app => {
+          if (!filteredCurrentApps.has(app)) {
             this.emitEvent({
               type: ActivityType.APP_CLOSED,
               data: { appName: app, platform: this.platform },
@@ -103,7 +153,7 @@ export class SystemMonitor extends EventEmitter {
           }
         });
 
-        this.lastActiveApps = currentApps;
+        this.lastActiveApps = currentApps; // Keep original for comparison
       } catch (error) {
         console.error('Error monitoring applications:', error);
       }

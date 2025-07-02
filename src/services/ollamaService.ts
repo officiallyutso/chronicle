@@ -1,4 +1,5 @@
-import { ActivityEvent } from './systemTracker';
+import { ActivityEvent } from './types'; // Fixed import
+import { ChatOllama } from '@langchain/ollama';
 
 export interface NarrativeStyle {
   tone: 'casual' | 'professional' | 'gamified' | 'technical';
@@ -7,42 +8,31 @@ export interface NarrativeStyle {
 
 export class OllamaService {
   private baseUrl = 'http://localhost:11434';
+  private llm: ChatOllama;
 
   constructor() {
-    console.log('OllamaService initialized');
+    this.llm = new ChatOllama({
+      model: 'llama2',
+      baseUrl: this.baseUrl,
+      temperature: 0.7,
+    });
+    console.log('OllamaService initialized with LangChain');
   }
 
   public async isOllamaAvailable(): Promise<boolean> {
     try {
-        const res = await fetch(`${this.baseUrl}/api/tags`);
-        return res.ok;
+      const res = await fetch(`${this.baseUrl}/api/tags`);
+      return res.ok;
     } catch {
-        return false;
+      return false;
     }
-    }
-
+  }
 
   public async generateNarrative(events: ActivityEvent[], style: NarrativeStyle): Promise<string> {
-    // Try to connect to Ollama first
     try {
-      const response = await fetch(`${this.baseUrl}/api/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama2', // or whatever model you have installed
-          prompt: this.createNarrativePrompt(events, style),
-          stream: false
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.response;
-      } else {
-        throw new Error('Ollama not available');
-      }
+      const prompt = this.createNarrativePrompt(events, style);
+      const response = await this.llm.invoke(prompt);
+      return response.content as string;
     } catch (error) {
       console.log('Ollama not available, using mock narrative');
       return this.generateMockNarrative(events, style);
@@ -50,26 +40,10 @@ export class OllamaService {
   }
 
   public async generateAchievements(events: ActivityEvent[]): Promise<string[]> {
-    // Try to connect to Ollama first
     try {
-      const response = await fetch(`${this.baseUrl}/api/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama3',
-          prompt: this.createAchievementPrompt(events),
-          stream: false
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.response.split('\n').filter((line: string) => line.trim().length > 0);
-      } else {
-        throw new Error('Ollama not available');
-      }
+      const prompt = this.createAchievementPrompt(events);
+      const response = await this.llm.invoke(prompt);
+      return (response.content as string).split('\n').filter((line: string) => line.trim().length > 0);
     } catch (error) {
       console.log('Ollama not available, using mock achievements');
       return this.generateMockAchievements(events);
@@ -78,7 +52,6 @@ export class OllamaService {
 
   private createNarrativePrompt(events: ActivityEvent[], style: NarrativeStyle): string {
     const eventSummary = events.map(e => `${e.type}: ${JSON.stringify(e.data)}`).join('\n');
-    
     return `Generate a ${style.tone} ${style.format} based on these development activities:
 
 ${eventSummary}
@@ -88,7 +61,6 @@ Create an engaging narrative that tells the story of this coding session. Focus 
 
   private createAchievementPrompt(events: ActivityEvent[]): string {
     const eventSummary = events.map(e => `${e.type}: ${JSON.stringify(e.data)}`).join('\n');
-    
     return `Based on these development activities, generate 3-5 achievement badges:
 
 ${eventSummary}
@@ -107,7 +79,7 @@ Format each achievement as a single line. Make them fun and gamified.`;
 
 Our brave developer embarked on an epic coding journey! They wielded ${appEvents.length} different applications like powerful tools, modified ${fileEvents.length} sacred files, and cast ${terminalEvents.length} terminal spells.
 
-The session lasted ${this.getSessionDuration(events)} minutes of pure coding magic! 
+The session lasted ${this.getSessionDuration(events)} minutes of pure coding magic!
 
 **Boss Battles Fought:**
 - Conquered the mysterious bugs in ${fileEvents.map(e => e.data.fileName).join(', ')}
@@ -164,34 +136,34 @@ ${fileEvents.length > 0 ? `The files you worked on include: ${fileEvents.map(e =
 Keep up the great work!`;
     }
   }
-/////mock achievements as a fail safe
+
   private generateMockAchievements(events: ActivityEvent[]): string[] {
     const achievements = [];
-    
+
     if (events.length >= 10) {
       achievements.push("Activity Master - Logged 10+ activities in one session!");
     }
-    
+
     if (events.filter(e => e.type === 'app_opened').length >= 3) {
       achievements.push("Multitasker - Used 3+ different applications!");
     }
-    
+
     if (events.filter(e => e.type === 'file_changed').length >= 5) {
       achievements.push("File Wizard - Modified 5+ files in one session!");
     }
-    
+
     if (events.filter(e => e.type === 'terminal_command').length >= 3) {
       achievements.push("Terminal Ninja - Executed 3+ terminal commands!");
     }
-    
+
     if (this.getSessionDuration(events) >= 30) {
       achievements.push("Marathon Coder - Coded for 30+ minutes straight!");
     }
-    
+
     if (achievements.length === 0) {
       achievements.push("Getting Started - Your coding journey begins!");
     }
-    
+
     return achievements;
   }
 
@@ -200,4 +172,3 @@ Keep up the great work!`;
     return Math.round((events[events.length - 1].timestamp - events[0].timestamp) / 1000 / 60);
   }
 }
-//testing
