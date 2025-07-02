@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/activityfeed.tsx","./src/components/dashboard.tsx","./src/components/narrativepanel.tsx","./src/components/settingspanel.tsx","./src/services/apiservice.ts","./src/services/ollamaservice.ts","./src/services/systemtracker.ts","./src/services/types.ts"],"version":"5.8.3"}

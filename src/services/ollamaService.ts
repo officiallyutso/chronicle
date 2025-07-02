@@ -58,7 +58,7 @@ export class OllamaService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'llama2',
+          model: 'llama3',
           prompt: this.createAchievementPrompt(events),
           stream: false
         })
@@ -200,3 +200,4 @@ Keep up the great work!`;
     return Math.round((events[events.length - 1].timestamp - events[0].timestamp) / 1000 / 60);
   }
 }
+//testing
