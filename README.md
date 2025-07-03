@@ -196,15 +196,23 @@ graph TB
 | **VS Code Extension - Available Commands** - View all available commands and features within the VS Code extension | <img src="https://github.com/user-attachments/assets/56103246-74ca-4f0e-9e43-0cd6fcccdff3" width="400"> |
 | **VS Code Extension - Activity Log** - Track your coding activities directly within VS Code with detailed logging | <img src="https://github.com/user-attachments/assets/8bf979d9-d57e-452c-ba78-901ae23194fd" width="400"> |
 | **VS Code Extension - Project Summary** - Get project summaries and insights directly within your VS Code workspace | <img src="https://github.com/user-attachments/assets/fc4b20ac-f2d9-4937-8027-a7cfc145b0f5" width="400"> |
+| **UNITY - AI package** - Package to generate npc characters - Agentic AI  | <img src="https://github.com/user-attachments/assets/d39735f4-857b-472a-a105-7d6f1f214634" width="400"> |
+| **UNITY - NPC AI** - Package to generate scriptable npc characters - Agentic AI  | <img src="https://github.com/user-attachments/assets/ec63e718-f1b9-48fd-bb25-6f363b75686a" width="600"> |
 
 ---
+
+
+
+
 
 ## VS Code Extension Architecture
 
 ### Extension Components
 
 ```mermaid
+
 graph LR
+
     subgraph "VS Code Extension"
         ExtMain[extension.ts]
         Summarizer[summarizer.ts]
