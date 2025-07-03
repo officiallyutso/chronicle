@@ -79,7 +79,20 @@ export class VectorStore {
       case 'terminal_command':
         return `At ${timestamp}, executed command: ${event.data.command} in ${event.data.shell}`;
       case 'browser_search':
-        return `At ${timestamp}, browser activity: ${event.data.action} on ${event.data.url}`;
+        // ENHANCED: Handle all browser extension data types
+        if (event.data.searchQuery && event.data.searchEngine) {
+          return `At ${timestamp}, searched for "${event.data.searchQuery}" on ${event.data.searchEngine}`;
+        } else if (event.data.action === 'search_result_clicked') {
+          return `At ${timestamp}, clicked search result: ${event.data.title} (${event.data.url})`;
+        } else if (event.data.action === 'website_opened') {
+          return `At ${timestamp}, visited website ${event.data.url} - ${event.data.title}`;
+        } else if (event.data.action === 'tab_focused') {
+          return `At ${timestamp}, focused on tab: ${event.data.title} (${event.data.domain})`;
+        } else if (event.data.action === 'website_closed') {
+          return `At ${timestamp}, closed website ${event.data.url} after ${Math.round((event.data.sessionDuration || 0) / 1000)}s`;
+        } else {
+          return `At ${timestamp}, browser activity: ${event.data.action} on ${event.data.url || event.data.domain}`;
+        }
       case 'vscode_action':
         return `At ${timestamp}, VS Code: ${event.data.action} file ${event.data.file} in project ${event.data.project}`;
       default:

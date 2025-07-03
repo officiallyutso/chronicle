@@ -84,6 +84,9 @@ export class ActivityAnalysisTool extends Tool {
               url: data.url,
               title: data.title,
               action: data.action,
+              domain: data.domain,
+              searchEngine: data.searchEngine,
+              searchQuery: data.searchQuery,
               timestamp
             });
             break;

@@ -183,6 +183,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
             title: tab.title || domain,
             action: 'website_opened',
             domain: domain,
+            searchEngine: searchInfo?.engine,
+            searchQuery: searchInfo?.query,
             timestamp: Date.now()
           });
         }

@@ -64,7 +64,19 @@ async function initializeAIServices() {
   try {
     await vectorStore.initialize();
     await enhancedAgentService.initialize();
-    console.log('AI services initialized');
+    console.log('AI services initialized successfully');
+    
+    // Test vector store
+    const testEvent: ActivityEvent = {
+      id: 'test_init',
+      timestamp: Date.now(),
+      type: ActivityType.SYSTEM_ACTIVE,
+      data: { action: 'vector_store_test' },
+      category: 'system'
+    };
+    await vectorStore.storeActivityEvent(testEvent);
+    console.log('Vector store test successful');
+    
   } catch (error) {
     console.error('Failed to initialize AI services:', error);
   }
@@ -389,20 +401,38 @@ app.post('/api/extensions/vscode', (req, res) => {
 });
 
 // Browser extension input
-app.post('/api/extensions/browser', (req, res) => {
-  const { url, title, action } = req.body;
+app.post('/api/extensions/browser', async (req, res) => {
+  const { url, title, action, domain, searchEngine, searchQuery } = req.body;
+  
   const event: ActivityEvent = {
     id: `browser_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     timestamp: Date.now(),
     type: ActivityType.BROWSER_SEARCH,
-    data: { url, title, action },
+    data: { 
+      url, 
+      title, 
+      action, 
+      domain, 
+      searchEngine, 
+      searchQuery 
+    },
     category: 'browser'
   };
 
   events.push(event);
   broadcastEvent(event);
+  
+  // CRITICAL FIX: Store browser events in vector database
+  try {
+    await vectorStore.storeActivityEvent(event);
+    console.log(`Browser event stored in vector DB: ${action} on ${url}`);
+  } catch (error) {
+    console.error('Failed to store browser event in vector database:', error);
+  }
+
   res.json({ success: true, eventId: event.id });
 });
+
 
 // Health check
 app.get('/api/health', (req, res) => {
