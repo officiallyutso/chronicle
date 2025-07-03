@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 300px;
+      min-height: 200px;
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      background: linear-gradient(135deg, #333333 0%, #4c4c4c 100%);
+      color: white;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .header p {
+      margin: 4px 0 0;
+      opacity: 0.8;
+      font-size: 12px;
+    }
+    
+    .tracking-toggle {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .toggle-label {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 24px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    
+    .toggle-switch.active {
+      background: #4ade80;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .toggle-switch.active .toggle-slider {
+      transform: translateX(26px);
+    }
+    
+    .status {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-dot.error {
+      background: #ef4444;
+    }
+    
+    .status-dot.disabled {
+      background: #6b7280;
+      animation: none;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .stats {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .stats h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      font-size: 12px;
+    }
+    
+    .stat-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .btn-secondary {
+      background: rgba(0, 0, 0, 0.2);
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .current-tab {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .current-tab h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .tab-info {
+      font-size: 12px;
+      opacity: 0.9;
+      word-break: break-all;
+    }
+    
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 16px;
+    }
+    
+    .disabled-overlay {
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Chronicle Tracker</h1>
+    <p>Browser Activity Monitor</p>
+  </div>
+  
+  <div class="tracking-toggle">
+    <span class="toggle-label">Tracking</span>
+    <div class="toggle-switch" id="trackingToggle">
+      <div class="toggle-slider"></div>
+    </div>
+  </div>
+  
+  <div class="status">
+    <div class="status-indicator">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Checking connection...</span>
+    </div>
+    <div id="statusDetails" style="font-size: 11px; opacity: 0.8; margin-top: 4px;"></div>
+  </div>
+  
+  <div class="current-tab" id="currentTabSection">
+    <h3>Current Tab</h3>
+    <div class="tab-info" id="currentTabInfo">Loading...</div>
+  </div>
+  
+  <div class="stats" id="statsSection">
+    <h3>Session Stats</h3>
+    <div class="stat-item">
+      <span>Events Today:</span>
+      <span id="eventsToday">--</span>
+    </div>
+    <div class="stat-item">
+      <span>Websites Visited:</span>
+      <span id="websitesVisited">--</span>
+    </div>
+    <div class="stat-item">
+      <span>Searches Made:</span>
+      <span id="searchesMade">--</span>
+    </div>
+    <div class="stat-item">
+      <span>Active Time:</span>
+      <span id="activeTime">--</span>
+    </div>
+  </div>
+  
+  <div class="controls">
+    <button class="btn btn-primary" id="openDashboard">Dashboard</button>
+    <button class="btn btn-secondary" id="clearData">Clear Data</button>
+  </div>
+  
+  <div class="footer">
+    <p>Chronicle System Activity Tracker</p>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

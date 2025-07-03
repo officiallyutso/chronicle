@@ -1,0 +1,22 @@
+# Core LangChain packages agar errors aye toh update krlena
+langchain-core>=0.3.15
+langchain-community>=0.3.7
+langchain-ollama>=0.2.0
+
+# Vector Database
+chromadb>=0.5.15
+
+# Ollama Integration
+ollama>=0.3.3
+
+# Data Processing & Utilities
+pydantic>=2.9.2
+numpy>=1.24.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Date/Time handling
+python-dateutil>=2.8.2
+
+# JSON handling and validation
+jsonschema>=4.17.0
