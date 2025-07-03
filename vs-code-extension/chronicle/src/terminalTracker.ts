@@ -101,7 +101,7 @@ export function initTerminalLogging(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(terminal);
 
-    vscode.window.showInformationMessage("📟 Chronicle Shell ready. Open it via Terminal > Chronicle Shell");
+    vscode.window.showInformationMessage("Chronicle Shell ready. Open it via Terminal > Chronicle Shell");
 
     terminal.show();
 }
