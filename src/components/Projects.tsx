@@ -247,7 +247,7 @@ export const Projects: React.FC = () => {
           {/* Projects Grid */}
           {filteredProjects.length === 0 ? (
             <div className="text-center py-16">
-              <div className="text-6xl mb-4">📁</div>
+              <div className="text-6xl mb-4"></div>
               <div className="text-xl text-gray-400 mb-2">
                 {searchTerm ? 'No projects match your search' : 'No projects found'}
               </div>
@@ -382,7 +382,7 @@ export const Projects: React.FC = () => {
                   {Object.entries(selectedProject.folderSummaries).map(([folder, summary]) => (
                     <div key={folder} className="bg-gray-900 rounded-lg p-4 border-l-4 border-blue-500">
                       <h4 className="font-medium text-white mb-2 flex items-center">
-                        <span className="text-blue-400 mr-2">📁</span>
+                        <span className="text-blue-400 mr-2"></span>
                         {folder}
                       </h4>
                       <p className="text-gray-300 text-sm leading-relaxed">{summary}</p>
@@ -406,7 +406,7 @@ export const Projects: React.FC = () => {
                     <div className="text-gray-300 text-sm leading-relaxed">
                       <div dangerouslySetInnerHTML={{ 
                         __html: summary
-                          .replace(/###\s*([^\n]+)/g, '<strong class="text-white text-base">📄 $1</strong>')
+                          .replace(/###\s*([^\n]+)/g, '<strong class="text-white text-base"> $1</strong>')
                           .replace(/\n\n/g, '<br/><br/>')
                           .replace(/\n/g, '<br/>')
                       }} />
