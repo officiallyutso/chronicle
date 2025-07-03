@@ -3,15 +3,18 @@
   "displayName": "Chronicle",
   "description": "A helper/tracker tool.",
   "version": "0.0.1",
- "engines": {
-  "vscode": "^1.75.0"
-},
+  "engines": {
+    "vscode": "^1.75.0"
+  },
   "categories": [
     "Other"
   ],
   "activationEvents": [
     "onCommand:chronicle.activateChronicle",
-    "onCommand:chronicle.deactivateChronicle"
+    "onCommand:chronicle.deactivateChronicle",
+    "onCommand:chronicle.summarizeProject",
+    "onCommand:chronicle.summarizeCurrentFile",
+    "onCommand:chronicle.summarizeCurrentFolder"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -21,12 +24,24 @@
         "title": "Chronicle: Open Activity Log"
       },
       {
+        "command": "chronicle.summarizeProject",
+        "title": "Chronicle: Summarize Entire Project"
+      },
+      {
         "command": "chronicle.deactivateChronicle",
-        "title": "Chronicle: Deactivate Logging"
+        "title": "Chronicle: Deactivate Chronicle"
       },
       {
         "command": "chronicle.activateChronicle",
-        "title": "Chronicle: Activate Logging"
+        "title": "Chronicle: Activate Chronicle"
+      },
+      {
+        "command": "chronicle.summarizeCurrentFile",
+        "title": "Chronicle: Summarize Current File"
+      },
+      {
+        "command": "chronicle.summarizeCurrentFolder",
+        "title": "Chronicle: Summarize Current Folder"
       }
     ]
   },

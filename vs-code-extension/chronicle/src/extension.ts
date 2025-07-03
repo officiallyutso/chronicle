@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { summarizeProject, callOllama, collectAndSummarizeFiles } from './summarizer';
 
 export type ActivityType = 'OPEN' | 'CLOSE' | 'SAVE' | 'CREATE' | 'DELETE' | 'CHANGE' | string;
 
@@ -56,7 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
     fs.mkdirSync(logFolder, { recursive: true });
     logFilePath = path.join(logFolder, 'activity-log.txt');
 
-    console.log("📁 Chronicle logging activated at:", logFilePath);
+    console.log("Chronicle logging activated at:", logFilePath);
 
     const openLogCommand = vscode.commands.registerCommand('chronicle.openLog', () => {
       vscode.workspace.openTextDocument(logFilePath).then(doc => {
@@ -75,8 +76,101 @@ export function activate(context: vscode.ExtensionContext) {
       }
       activeChronicleDisposables = [];
 
-      vscode.window.showInformationMessage("🛑 Chronicle logging has been deactivated.");
+      vscode.window.showInformationMessage("Chronicle logging has been deactivated.");
     });
+
+    //#Summarization Commands
+    const summarizeCommand = vscode.commands.registerCommand('chronicle.summarizeProject', () => {
+      summarizeProject(context);
+    });
+
+    const summarizeCurrentFile = vscode.commands.registerCommand('chronicle.summarizeCurrentFile', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showErrorMessage('No file is currently open.');
+        return;
+      }
+
+      const doc = editor.document;
+      const filePath = doc.fileName;
+      const fileName = path.basename(filePath);
+      const projectName = getProjectName(filePath);
+
+      // Limit to first 80 liness
+      const content = doc.getText().split('\n').slice(0, 80).join('\n');
+
+      const prompt = `You are a smart code assistant. Explain what this file does in simple terms in about 3-4 lines.\nProject: ${projectName}\nFile: ${fileName}\n\n${content}`;
+
+      await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: `Summarizing ${fileName} with Ollama...`,
+        cancellable: false
+      }, async () => {
+        try {
+          const summary = await callOllama(prompt);
+
+          const markdown = `### ${fileName}\n\n<details>\n<summary>Click to expand</summary>\n\n${summary.trim()}\n\n</details>`;
+          const summaryDoc = await vscode.workspace.openTextDocument({
+            content: markdown,
+            language: 'markdown'
+          });
+          vscode.window.showTextDocument(summaryDoc);
+
+          // Optional logging (if needed)
+          fs.appendFileSync(logFilePath, `${fileName} | SUMMARY | ${formatTime(Date.now())}\n`);
+        } catch (err) {
+          console.error(err);
+          vscode.window.showErrorMessage('Failed to get summary from Ollama.');
+        }
+      });
+    });
+
+
+    const summarizeCurrentFolder = vscode.commands.registerCommand('chronicle.summarizeCurrentFolder', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return vscode.window.showErrorMessage('No file is currently open.');
+
+      const filePath = editor.document.uri.fsPath;
+      const folderPath = path.dirname(filePath);
+      const folderName = path.basename(folderPath);
+
+      const fileSummaries: string[] = [];
+      const folderSummaries: Record<string, string[]> = {};
+
+      await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: `Summarizing folder: ${folderName}`,
+        cancellable: false
+      }, async () => {
+        await collectAndSummarizeFiles(folderPath, fileSummaries, folderSummaries);
+      });
+
+      // ---  File-by-file summary ---
+      const fileSummaryMarkdown = `#File Summaries for ${folderName}\n\n${fileSummaries.join('\n\n')}`;
+      const fileSummaryDoc = await vscode.workspace.openTextDocument({
+        content: fileSummaryMarkdown,
+        language: 'markdown'
+      });
+      vscode.window.showTextDocument(fileSummaryDoc, { preview: false });
+
+      const folderSummaryMarkdown =
+        `#Folder Structure Summary: ${folderName}\n\n` +
+        Object.entries(folderSummaries)
+          .map(([folder, summaries]) =>
+            `<details>\n<summary><strong>${folder}</strong></summary>\n\n${summaries.join('\n')}\n\n</details>`
+          )
+          .join('\n\n');
+
+      const folderSummaryDoc = await vscode.workspace.openTextDocument({
+        content: folderSummaryMarkdown,
+        language: 'markdown'
+      });
+      vscode.window.showTextDocument(folderSummaryDoc, { preview: false });
+    });
+
+
+    context.subscriptions.push(summarizeCommand, summarizeCurrentFile, summarizeCurrentFolder);
+    //#endregion
 
     activeChronicleDisposables.push(
       vscode.workspace.onDidOpenTextDocument(doc => {
@@ -106,8 +200,10 @@ export function activate(context: vscode.ExtensionContext) {
     activeChronicleDisposables.push(watcher);
 
     context.subscriptions.push(activateCommand, deactivateCommand, openLogCommand);
+
   });
   context.subscriptions.push(activateCommand);
+
 }
 
 export function deactivate() {
