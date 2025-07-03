@@ -12,7 +12,7 @@ export class OllamaService {
 
   constructor() {
     this.llm = new ChatOllama({
-      model: 'llama2',
+      model: 'llama3',
       baseUrl: this.baseUrl,
       temperature: 0.7,
     });

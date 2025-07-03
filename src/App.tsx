@@ -7,6 +7,7 @@ import { Dashboard } from './components/Dashboard';
 import { ActivityFeed } from './components/ActivityFeed';
 import { NarrativePanel } from './components/NarrativePanel';
 import { SettingsPanel } from './components/SettingsPanel';
+import { ChatPanel } from './components/ChatPanel';
 
 const App: React.FC = () => {
   const [agentApiService] = useState(() => new AgentApiService());
@@ -22,7 +23,7 @@ const App: React.FC = () => {
   });
   const [currentNarrative, setCurrentNarrative] = useState<string>('');
   const [achievements, setAchievements] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'activity' | 'narrative' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'activity' | 'narrative' | 'chat' | 'settings'>('dashboard');
   const [narrativeStyle, setNarrativeStyle] = useState<NarrativeStyle>({ tone: 'gamified', format: 'story' });
   const [isGenerating, setIsGenerating] = useState(false);
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
@@ -190,7 +191,7 @@ const App: React.FC = () => {
       <nav className="bg-gray-800 border-b border-gray-700">
         <div className="px-6 py-3">
           <div className="flex space-x-6">
-            {(['dashboard', 'activity', 'narrative', 'settings'] as const).map((tab) => (
+            {(['dashboard', 'activity', 'narrative', 'chat', 'settings'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -233,6 +234,10 @@ const App: React.FC = () => {
             narrativeStyle={narrativeStyle}
             onStyleChange={setNarrativeStyle}
           />
+        )}
+
+        {activeTab === 'chat' && (
+          <ChatPanel backendConnected={backendConnected} />
         )}
         
         {activeTab === 'settings' && (
