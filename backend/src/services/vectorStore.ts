@@ -55,17 +55,30 @@ export class VectorStore {
     }
   }
 
-  async searchSimilarActivities(query: string, limit: number = 5): Promise<any[]> {
+  async searchSimilarActivities(query: string, limit = 5): Promise<any[]> {
     if (!this.chroma) await this.initialize();
-    
-    try {
-      const results = await this.chroma!.similaritySearch(query, limit);
-      return results;
-    } catch (error) {
-      console.error('Failed to search activities:', error);
-      return [];
+
+    const vector = await this.embeddings.embedQuery(query); // 1D number[]
+
+    const collection = (this.chroma as any).collection;
+
+    if (!collection || typeof collection.query !== 'function') {
+      throw new Error('Chroma collection is not initialized properly.');
     }
+
+    const results = await collection.query({
+      queryEmbeddings: [vector], // Must be 2D
+      nResults: limit,
+      include: ['documents', 'metadatas', 'distances'],
+    });
+
+    return results.documents[0].map((doc: string, i: number) => ({
+      pageContent: doc,
+      metadata: results.metadatas?.[0]?.[i],
+      score: results.distances?.[0]?.[i],
+    }));
   }
+
 
   private eventToText(event: ActivityEvent): string {
     const timestamp = new Date(event.timestamp).toLocaleString();

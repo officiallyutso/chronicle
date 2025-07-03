@@ -28,7 +28,7 @@ curl -fsSL https://ollama.ai/install.sh | sh
 
 **Pull required models:**
 ```bash
-ollama pull llama2
+ollama pull llama3
 ollama pull nomic-embed-text
 ```
 
@@ -76,7 +76,7 @@ cd ..
 ```env
 OLLAMA_BASE_URL=http://localhost:11434
 CHROMA_URL=http://localhost:8000
-OLLAMA_MODEL=llama2
+OLLAMA_MODEL=llama3
 OLLAMA_EMBEDDING_MODEL=nomic-embed-text
 ```
 
