@@ -165,15 +165,130 @@ app.delete('/api/ai/chat/history', async (req, res) => {
 
 // Simple narrative generation for backward compatibility
 async function generateSimpleNarrative(events: ActivityEvent[], style: any): Promise<string> {
-  const eventSummary = events.slice(-20).map(e =>
-    `${e.type}: ${JSON.stringify(e.data)}`
-  ).join('\n');
+  const recentEvents = events.slice(-100); // Get more events for better context
+  
+  // Analyze events by type
+  const appEvents = recentEvents.filter(e => e.type === ActivityType.APP_OPENED);
+  const fileEvents = recentEvents.filter(e => e.type === ActivityType.FILE_CHANGED);
+  const terminalEvents = recentEvents.filter(e => e.type === ActivityType.TERMINAL_COMMAND);
+  const browserEvents = recentEvents.filter(e => e.type === ActivityType.BROWSER_SEARCH);
 
-  const prompt = `Generate a ${style.tone} ${style.format} narrative based on these recent development activities:
+  // Create detailed context
+  const sessionDuration = recentEvents.length > 0 
+    ? Math.round((recentEvents[recentEvents.length - 1].timestamp - recentEvents[0].timestamp) / 1000 / 60)
+    : 0;
 
-${eventSummary}
+  const uniqueApps = [...new Set(appEvents.map(e => e.data.appName))];
+  const uniqueFiles = [...new Set(fileEvents.map(e => e.data.fileName))];
+  const projects = [...new Set(terminalEvents.map(e => e.data.projectName).filter(Boolean))];
 
-Create an engaging story that highlights the developer's journey, accomplishments, and work patterns. Make it ${style.tone} in tone and format it as a ${style.format}.`;
+  let prompt = '';
+
+  switch (style.tone) {
+    case 'gamified':
+      prompt = `You are a Game Master narrating an epic coding adventure! Create a ${style.format} that tells the story of a developer's coding session.
+
+SESSION STATS:
+- Duration: ${sessionDuration} minutes of epic coding
+- Applications Used: ${uniqueApps.join(', ')}
+- Files Modified: ${uniqueFiles.slice(0, 5).join(', ')}${uniqueFiles.length > 5 ? ' and more' : ''}
+- Terminal Commands: ${terminalEvents.length} powerful spells cast
+- Projects: ${projects.join(', ')}
+
+RECENT ACTIVITIES:
+${recentEvents.slice(-20).map(e => `- ${e.type}: ${JSON.stringify(e.data)}`).join('\n')}
+
+Write this as an EPIC GAMING ADVENTURE with:
+- RPG-style language (quests, battles, achievements, XP)
+- Exciting action words
+- Gaming metaphors for coding activities
+- Achievement unlocks and level-ups
+- Boss battles (debugging, complex features)
+- Power-ups (new tools, successful builds)
+
+Make it feel like the developer is the hero of an epic coding quest!`;
+      break;
+
+    case 'professional':
+      prompt = `Create a professional development session report in ${style.format} format.
+
+SESSION OVERVIEW:
+- Duration: ${sessionDuration} minutes
+- Total Activities: ${recentEvents.length}
+- Applications: ${uniqueApps.join(', ')}
+- Projects Worked On: ${projects.join(', ')}
+
+DETAILED BREAKDOWN:
+- File Operations: ${fileEvents.length} files modified
+- Terminal Operations: ${terminalEvents.length} commands executed
+- Primary Files: ${uniqueFiles.slice(0, 5).join(', ')}
+
+RECENT ACTIVITY LOG:
+${recentEvents.slice(-15).map(e => `${new Date(e.timestamp).toLocaleTimeString()}: ${e.type} - ${JSON.stringify(e.data)}`).join('\n')}
+
+Write a PROFESSIONAL, BUSINESS-STYLE report with:
+- Clear metrics and KPIs
+- Structured analysis
+- Productivity insights
+- Technical accomplishments
+- Time management observations
+- Professional language and tone
+
+Focus on efficiency, productivity, and technical achievements.`;
+      break;
+
+    case 'technical':
+      prompt = `Generate a technical system log analysis in ${style.format} format.
+
+SYSTEM METRICS:
+- Session Duration: ${sessionDuration}m
+- Process Count: ${recentEvents.length}
+- File I/O Operations: ${fileEvents.length}
+- Shell Executions: ${terminalEvents.length}
+- Application Contexts: ${uniqueApps.length}
+
+PROCESS TREE:
+${recentEvents.slice(-10).map(e => `[${new Date(e.timestamp).toISOString()}] ${e.type.toUpperCase()}: ${JSON.stringify(e.data)}`).join('\n')}
+
+PROJECT ANALYSIS:
+${projects.map(project => `- ${project}: ${terminalEvents.filter(e => e.data.projectName === project).length} operations`).join('\n')}
+
+Write in TECHNICAL DOCUMENTATION STYLE with:
+- System-level terminology
+- Process and thread references
+- File system operations
+- Memory and performance metrics
+- Code-like formatting
+- Technical precision
+- Engineering terminology
+
+Make it sound like a detailed system analysis report.`;
+      break;
+
+    case 'casual':
+    default:
+      prompt = `Write a casual, friendly summary in ${style.format} format about a coding session.
+
+What happened in the last ${sessionDuration} minutes:
+- Used these apps: ${uniqueApps.join(', ')}
+- Worked on: ${projects.join(', ')}
+- Modified ${fileEvents.length} files
+- Ran ${terminalEvents.length} commands
+
+Recent stuff:
+${recentEvents.slice(-10).map(e => `- ${e.type}: ${JSON.stringify(e.data)}`).join('\n')}
+
+Write this in a CASUAL, FRIENDLY tone like you're telling a friend:
+- Use everyday language
+- Be conversational and relaxed
+- Include some humor if appropriate
+- Make it relatable
+- Use "you" to address the developer
+- Keep it light and encouraging
+
+Make it feel like a friendly chat about what they accomplished!`;
+      break;
+  }
 
   try {
     const response = await enhancedAgentService.processConversationalQuery(prompt);

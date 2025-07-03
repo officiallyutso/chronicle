@@ -451,11 +451,10 @@ export class SystemMonitor extends EventEmitter {
 
   private isRelevantCommand(command: string): boolean {
     if (!command || command.trim().length === 0) return false;
-    
     const commandLower = command.toLowerCase().trim();
     
-    // Filter out system processes and internal operations
-    const systemProcessFilters = [
+    // System processes and spam commands to exclude
+    const excludedCommands = [
       'smartscreen.exe',
       'openconsole.exe',
       'windowsterminal.exe',
@@ -472,39 +471,41 @@ export class SystemMonitor extends EventEmitter {
       '-embedding',
       'c:\\windows',
       'microsoft.windowsterminal',
-      os.hostname().toLowerCase()
+      os.hostname().toLowerCase(),
+      // Add more system spam commands
+      'wmic.exe',
+      'tasklist',
+      'findstr',
+      'ioreg',
+      'awk',
+      'cat /proc/',
+      'ps -eo',
+      'grep -v grep'
     ];
-    
-    // Skip if it contains any system process indicators
-    if (systemProcessFilters.some(filter => commandLower.includes(filter))) {
+
+    // Skip if it contains any excluded command indicators
+    if (excludedCommands.some(excluded => commandLower.includes(excluded))) {
       return false;
     }
-    
+
     // Skip if it's a full file path without actual command
     if (commandLower.match(/^"?[a-z]:\\.*\.exe"?\s*(-\w+\s*)*$/)) {
       return false;
     }
-    
-    // Define relevant user commands we want to capture
-    const relevantCommands = [
-      'pip', 'python', 'node', 'npm', 'npx', 'git', 'docker', 
-      'yarn', 'pnpm', 'curl', 'wget', 'make', 'cargo', 'go',
-      'mvn', 'gradle', 'ng', 'vue', 'react', 'next', 'cd', 'ls',
-      'dir', 'mkdir', 'rmdir', 'del', 'copy', 'move', 'cls', 'clear',
-      'cat', 'nano', 'vim', 'code', 'touch', 'grep', 'find', 'ssh',
-      'scp', 'rsync', 'tar', 'zip', 'unzip', 'chmod', 'chown'
-    ];
-    
-    // Check if command starts with or contains relevant commands
-    const hasRelevantCommand = relevantCommands.some(cmd => {
-      return commandLower.startsWith(cmd + ' ') || 
-             commandLower.startsWith(cmd + '.exe') ||
-             commandLower === cmd ||
-             (commandLower.includes(' ' + cmd + ' ')) ||
-             (commandLower.includes(' ' + cmd + '.exe'))
-    });
-    
-    return hasRelevantCommand;
+
+    // Skip very short commands that are likely noise
+    if (commandLower.length < 2) {
+      return false;
+    }
+
+    // Skip commands that are just numbers or symbols
+    if (commandLower.match(/^[\d\s\-_\.]+$/)) {
+      return false;
+    }
+
+    // Instead of checking for specific commands, exclude only obvious system noise
+    // This allows ollama, ruby, and other user commands to be recorded
+    return true;
   }
 
   private startHistoryFileMonitoring(): void {
@@ -640,8 +641,6 @@ export class SystemMonitor extends EventEmitter {
     
     // Extract simple command from complex paths
     if (cleanCommand.includes('.exe')) {
-      // For commands like: "C:\...\pip.exe" install numpy
-      // Extract: pip install numpy
       const match = cleanCommand.match(/([^\\\/]+\.exe)(.*)$/i);
       if (match) {
         const execName = match[1].replace('.exe', '').replace(/"/g, '');
@@ -649,11 +648,13 @@ export class SystemMonitor extends EventEmitter {
         cleanCommand = args ? `${execName} ${args}` : execName;
       }
     }
-    
+
     // Remove quotes and extra spaces
     cleanCommand = cleanCommand.replace(/^["']|["']$/g, '').replace(/\s+/g, ' ').trim();
-    
-    // Final validation - must have actual content and be a real command
+
+    // Get current working directory and project context
+    const projectContext = this.extractProjectContext(cleanCommand);
+
     if (cleanCommand.length > 0 && !cleanCommand.includes('\\') && !cleanCommand.includes('-Embedding')) {
       this.emitEvent({
         type: ActivityType.TERMINAL_COMMAND,
@@ -662,10 +663,171 @@ export class SystemMonitor extends EventEmitter {
           originalCommand: command,
           shell: shell,
           timestamp: Date.now(),
-          platform: this.platform
+          platform: this.platform,
+          workingDirectory: projectContext.workingDirectory,
+          projectName: projectContext.projectName,
+          projectType: projectContext.projectType
         },
         category: 'terminal'
       });
     }
   }
+
+  private extractProjectContext(command: string): {
+    workingDirectory: string;
+    projectName: string;
+    projectType: string;
+    detectedFeatures: string[];
+  } {
+    const cwd = process.cwd();
+    const projectName = path.basename(cwd);
+    
+    // Detect project type based on files in directory
+    let projectType = 'general';
+    const detectedFeatures: string[] = [];
+    
+    try {
+      const files = fs.readdirSync(cwd);
+      const fileExtensions = new Set<string>();
+      
+      // Collect all file extensions
+      files.forEach(file => {
+        const ext = path.extname(file).toLowerCase();
+        if (ext) fileExtensions.add(ext);
+      });
+
+      // Primary project type detection (more comprehensive)
+      if (files.includes('package.json')) {
+        projectType = 'node';
+        detectedFeatures.push('npm/yarn');
+      } else if (files.includes('requirements.txt') || files.includes('setup.py') || files.includes('pyproject.toml')) {
+        projectType = 'python';
+        detectedFeatures.push('pip/poetry');
+      } else if (files.includes('Cargo.toml')) {
+        projectType = 'rust';
+        detectedFeatures.push('cargo');
+      } else if (files.includes('go.mod') || files.includes('go.sum')) {
+        projectType = 'go';
+        detectedFeatures.push('go-modules');
+      } else if (files.includes('Gemfile') || files.includes('Gemfile.lock')) {
+        projectType = 'ruby';
+        detectedFeatures.push('bundler');
+      } else if (files.includes('composer.json')) {
+        projectType = 'php';
+        detectedFeatures.push('composer');
+      } else if (files.includes('pom.xml')) {
+        projectType = 'java-maven';
+        detectedFeatures.push('maven');
+      } else if (files.includes('build.gradle') || files.includes('build.gradle.kts')) {
+        projectType = 'java-gradle';
+        detectedFeatures.push('gradle');
+      } else if (files.includes('Makefile') || files.includes('makefile')) {
+        projectType = 'c-cpp';
+        detectedFeatures.push('make');
+      } else if (files.includes('CMakeLists.txt')) {
+        projectType = 'cmake';
+        detectedFeatures.push('cmake');
+      } else if (files.includes('Dockerfile')) {
+        projectType = 'docker';
+        detectedFeatures.push('containerized');
+      } else if (files.includes('.terraform') || files.some(f => f.endsWith('.tf'))) {
+        projectType = 'terraform';
+        detectedFeatures.push('infrastructure');
+      } else if (files.includes('angular.json')) {
+        projectType = 'angular';
+        detectedFeatures.push('angular-cli');
+      } else if (files.includes('next.config.js') || files.includes('next.config.ts')) {
+        projectType = 'nextjs';
+        detectedFeatures.push('react-framework');
+      } else if (files.includes('nuxt.config.js') || files.includes('nuxt.config.ts')) {
+        projectType = 'nuxtjs';
+        detectedFeatures.push('vue-framework');
+      } else if (files.includes('svelte.config.js')) {
+        projectType = 'svelte';
+        detectedFeatures.push('svelte-kit');
+      } else if (files.includes('deno.json') || files.includes('deno.jsonc')) {
+        projectType = 'deno';
+        detectedFeatures.push('deno-runtime');
+      } else if (files.includes('bun.lockb')) {
+        projectType = 'bun';
+        detectedFeatures.push('bun-runtime');
+      }
+      
+      // Secondary feature detection (can coexist with primary type)
+      if (files.includes('.git')) {
+        detectedFeatures.push('git-repo');
+      }
+      if (files.includes('docker-compose.yml') || files.includes('docker-compose.yaml')) {
+        detectedFeatures.push('docker-compose');
+      }
+      if (files.includes('kubernetes') || files.some(f => f.endsWith('.yaml') && f.includes('k8s'))) {
+        detectedFeatures.push('kubernetes');
+      }
+      if (files.includes('.github')) {
+        detectedFeatures.push('github-actions');
+      }
+      if (files.includes('tsconfig.json')) {
+        detectedFeatures.push('typescript');
+      }
+      if (files.includes('tailwind.config.js') || files.includes('tailwind.config.ts')) {
+        detectedFeatures.push('tailwind');
+      }
+      if (files.includes('vite.config.js') || files.includes('vite.config.ts')) {
+        detectedFeatures.push('vite');
+      }
+      if (files.includes('webpack.config.js')) {
+        detectedFeatures.push('webpack');
+      }
+      
+      // Fallback: detect by file extensions if no primary type found
+      if (projectType === 'general') {
+        if (fileExtensions.has('.py')) {
+          projectType = 'python-scripts';
+        } else if (fileExtensions.has('.js') || fileExtensions.has('.ts')) {
+          projectType = 'javascript';
+        } else if (fileExtensions.has('.java')) {
+          projectType = 'java';
+        } else if (fileExtensions.has('.cpp') || fileExtensions.has('.c') || fileExtensions.has('.h')) {
+          projectType = 'c-cpp';
+        } else if (fileExtensions.has('.rs')) {
+          projectType = 'rust-project';
+        } else if (fileExtensions.has('.go')) {
+          projectType = 'go-project';
+        } else if (fileExtensions.has('.rb')) {
+          projectType = 'ruby-scripts';
+        } else if (fileExtensions.has('.php')) {
+          projectType = 'php-project';
+        } else if (fileExtensions.has('.html') || fileExtensions.has('.css')) {
+          projectType = 'web-frontend';
+        } else if (fileExtensions.has('.md')) {
+          projectType = 'documentation';
+        } else if (fileExtensions.has('.sh') || fileExtensions.has('.bat')) {
+          projectType = 'scripts';
+        }
+      }
+      
+      // Command-based context enhancement
+      if (command.includes('ollama')) {
+        detectedFeatures.push('ai-development');
+      }
+      if (command.includes('jupyter') || command.includes('notebook')) {
+        detectedFeatures.push('data-science');
+      }
+      if (command.includes('pytest') || command.includes('jest') || command.includes('mocha')) {
+        detectedFeatures.push('testing');
+      }
+      
+    } catch (error) {
+      // Silent fail
+    }
+
+    return {
+      workingDirectory: cwd,
+      projectName,
+      projectType,
+      detectedFeatures
+    };
+  }
+
+
 }

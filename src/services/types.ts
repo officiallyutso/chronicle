@@ -37,6 +37,11 @@ export interface TerminalEventData {
   command: string;
   shell: string;
   timestamp: number;
+  originalCommand?: string;
+  platform?: string;
+  workingDirectory?: string;
+  projectName?: string;
+  projectType?: string;
 }
 
 export interface BrowserEventData {
