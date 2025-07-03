@@ -3,9 +3,9 @@
   "displayName": "Chronicle",
   "description": "A helper/tracker tool.",
   "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.80.0"
-  },
+ "engines": {
+  "vscode": "^1.75.0"
+},
   "categories": [
     "Other"
   ],
