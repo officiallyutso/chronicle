@@ -139,7 +139,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
-        title: `Summarizing folder: ${folderName}`,
+        title: `Summarizing all files in folder: ${folderName}`,
         cancellable: false
       }, async () => {
         await collectAndSummarizeFiles(folderPath, fileSummaries, folderSummaries);
@@ -152,15 +152,32 @@ export function activate(context: vscode.ExtensionContext) {
         language: 'markdown'
       });
       vscode.window.showTextDocument(fileSummaryDoc, { preview: false });
+      fs.appendFileSync(logFilePath, `${folderName} | SUMMARY | ${formatTime(Date.now())}\n`);
 
+      // Flatten file-level summaries to use for generating the folder summary
+      const flatFileSummaryText = Object.entries(folderSummaries)
+        .flatMap(([folder, summaries]) =>
+          summaries.map(summary => `${folder}/${summary}`)
+        )
+        .join('\n');
+
+      // Prompt Ollama for a high-level summary of the folder
+      const folderPrompt = `Below is a breakdown of what different files do in the project:\n\n${flatFileSummaryText}\n\nNow generate a high-level summary (~8-10 lines) explaining what this project (or folder) does as a whole — including its purpose, main components, and structure. Avoid repeating individual file details.`;
+
+      let folderOverview = '';
+
+      await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: `Giving Overview Of: ${folderName}`,
+        cancellable: false
+      }, async () => {
+        folderOverview = await callOllama(folderPrompt);
+      });
       const folderSummaryMarkdown =
-        `#Folder Structure Summary: ${folderName}\n\n` +
-        Object.entries(folderSummaries)
-          .map(([folder, summaries]) =>
-            `<details>\n<summary><strong>${folder}</strong></summary>\n\n${summaries.join('\n')}\n\n</details>`
-          )
-          .join('\n\n');
+        `# Project Summary\n\n${folderOverview}\n\n` +
+        `---\n\n`;
 
+      // Open the markdown as a text document
       const folderSummaryDoc = await vscode.workspace.openTextDocument({
         content: folderSummaryMarkdown,
         language: 'markdown'

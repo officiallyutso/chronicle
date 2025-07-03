@@ -7,64 +7,91 @@ const model = 'llama3';
 
 const ignored = ['node_modules', '.git', 'dist', 'build', '.next', 'out', '.vscode', 'coverage', 'logs', 'tmp', 'temp', '.cache', '.idea', '.DS_Store'];
 
+const SYSTEM_PREFIX = `You are a helpful code summarizer. 
+Avoid guessing, generalizations, or hallucinations. 
+Base every summary strictly on the real source code given.`;
+
 export async function summarizeProject(context: vscode.ExtensionContext) {
     const workspace = vscode.workspace.workspaceFolders?.[0];
     if (!workspace) return vscode.window.showErrorMessage('No workspace folder found');
 
-    const root = workspace.uri.fsPath;
-    const fileSummaries: string[] = [];
-    const folderSummaries: Record<string, string[]> = {};
-    const folderSummariesText: Record<string, string> = {};
+    await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: 'Generating project summary...',
+        cancellable: false
+    }, async () => {
+        const root = workspace.uri.fsPath;
+        const fileSummaries: string[] = [];
+        const folderSummaries: Record<string, string[]> = {};
+        const folderSummariesText: Record<string, string> = {};
 
-    await collectAndSummarizeFiles(root, fileSummaries, folderSummaries);
+        await collectAndSummarizeFiles(root, fileSummaries, folderSummaries, 0, 1); // One layer deep
 
-    // Generate folder-level summaries using their file summaries
-    for (const [folder, summaries] of Object.entries(folderSummaries)) {
-        const folderPrompt = `Here is a list of files and what each of them does inside the folder '${folder}':\n\n${summaries.join('\n')}
-    
-Based on this, write a concise summary (4–6 lines) explaining the purpose and role of this folder in the overall project.`;
-        const folderSummary = await callOllama(folderPrompt);
-        folderSummariesText[folder] = folderSummary;
-    }
+        // Summarize each folder based on its files
+        for (const [folder, summaries] of Object.entries(folderSummaries)) {
+            const prompt = `${SYSTEM_PREFIX}\n\nHere is a list of files and what each does inside the folder '${folder}':\n\n${summaries.join('\n')}
+Now give a specific and concise 6–8 line summary of this folder's role in the project. Avoid guessing or generic language.`;
 
-    // Generate project-level summary using folder-level summaries
-    const folderSummaryCombined = Object.entries(folderSummariesText)
-        .map(([folder, summary]) => `📁 ${folder}:\n${summary}`)
-        .join('\n\n');
+            const folderSummary = await callOllama(prompt);
+            folderSummariesText[folder] = folderSummary.trim();
+        }
 
-    const projectPrompt = `Here are summaries of key folders in a project:\n\n${folderSummaryCombined}
-  
-Now write a high-level, concise summary (about 11–12 lines) that explains what this entire project does, its architecture, and its main purpose. Avoid repeating folder summaries verbatim.`;
+        if (Object.keys(folderSummariesText).length === 0) {
+            return vscode.window.showErrorMessage("No folder summaries were generated. Check if the project has valid source files.");
+        }
 
-    const overallSummary = await callOllama(projectPrompt);
+        // Combine folder summaries into prompt for project-level summary
+        const folderSummaryCombined = Object.entries(folderSummariesText)
+            .map(([folder, summary]) => `## ${folder}\n${summary}`)
+            .join('\n\n');
 
-    const fullSummary = ` Folder-Level Summaries:\n\n${folderSummaryCombined}\n\n Project Summary:\n\n${overallSummary}`;
+        const projectPrompt = `${SYSTEM_PREFIX}\n\nBelow are summaries of folders from a real software project:\n\n${folderSummaryCombined}
+        Write a clear, structured 15–20 line summary that explains the actual purpose of the entire project.
+       Focus on architecture, functionality, and component flow based ONLY on the data provided.`;
 
-    const doc = await vscode.workspace.openTextDocument({ content: fullSummary, language: 'markdown' });
-    vscode.window.showTextDocument(doc);
+        const projectSummary = await callOllama(projectPrompt);
+
+        // Construct final Markdown output
+        const fullMarkdown =
+            `# Project Summary\n\n${projectSummary.trim()}\n\n---\n\n` +
+            `# Folder Summaries\n\n` +
+            Object.entries(folderSummariesText)
+                .map(([folder, summary]) =>
+                    `<details>\n<summary><strong>${folder}</strong></summary>\n\n${summary}\n\n</details>`
+                ).join('\n\n');
+
+        const doc = await vscode.workspace.openTextDocument({
+            content: fullMarkdown,
+            language: 'markdown'
+        });
+        vscode.window.showTextDocument(doc, { preview: false });
+    });
 }
-
 
 export async function collectAndSummarizeFiles(
     dir: string,
     fileSummaries: string[],
-    folderSummaries: Record<string, string[]>
+    folderSummaries: Record<string, string[]>,
+    currentDepth: number = 0,
+    maxDepth: number = 1
 ) {
+    if (currentDepth > maxDepth) return;
+
     const entries = fs.readdirSync(dir, { withFileTypes: true });
 
     for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
+        console.log(`Processing: ${fullPath}`);
         if (ignored.includes(entry.name)) continue;
 
-        if (entry.isFile() && entry.name.match(/\.(js|ts|py|java|cs|go|rb|rs|cpp|c|json|yml|md)$/)) {
+        if (entry.isFile() && entry.name.match(/\.(js|ts|py|java|cs|go|rb|rs|cpp|c|json|yml|yaml|md|dart|html|css|scss|jsx|tsx|sql|sh|xml|toml|ini|env|ipynb|swift|kt|mjs|cjs|sol|vy|zok|circom|ron|move|aleo)$/)) {
             try {
                 const content = fs.readFileSync(fullPath, 'utf8').split('\n').slice(0, 80).join('\n');
-                const prompt = `You are a smart code assistant. Explain what this file does in simple terms in about 3-4 lines. ${entry.name}\n\n${content}`;
+                const prompt = `You are a smart code assistant. Explain what this file does in simple terms in about 3–4 lines. ${entry.name}\n\n${content}`;
                 const summary = await callOllama(prompt);
 
                 const relativePath = vscode.workspace.asRelativePath(fullPath);
                 const fileLine = `### ${relativePath}\n\n${summary.trim()}`;
-
                 fileSummaries.push(fileLine);
 
                 const folder = path.dirname(relativePath);
@@ -74,11 +101,12 @@ export async function collectAndSummarizeFiles(
                 console.error(`Error summarizing ${entry.name}:`, err);
             }
         }
-        // Skip recursion into subfolders
-        // Do NOT recurse into entry.isDirectory()
+
+        if (entry.isDirectory()) {
+            await collectAndSummarizeFiles(fullPath, fileSummaries, folderSummaries, currentDepth + 1, maxDepth);
+        }
     }
 }
-
 
 export async function callOllama(prompt: string): Promise<string> {
     const response = await fetch(ollamaURL, {
@@ -88,12 +116,10 @@ export async function callOllama(prompt: string): Promise<string> {
     });
 
     if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Ollama error: ${text}`);
+        const errorText = await response.text();
+        throw new Error(`Ollama failed: ${errorText}`);
     }
 
     const data = await response.json() as { response: string };
     return data.response.trim();
-
-
 }
