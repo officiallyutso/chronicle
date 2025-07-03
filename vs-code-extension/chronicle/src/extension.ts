@@ -174,7 +174,7 @@ export function activate(context: vscode.ExtensionContext) {
         folderOverview = await callOllama(folderPrompt);
       });
       const folderSummaryMarkdown =
-        `# Project Summary\n\n${folderOverview}\n\n` +
+        `# Folder Summary\n\n${folderOverview}\n\n` +
         `---\n\n`;
 
       // Open the markdown as a text document

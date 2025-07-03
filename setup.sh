@@ -2,7 +2,7 @@
 echo "Setting up Chronicle with Ollama..."
 
 # Pull required models
-ollama pull llama2
+ollama pull llama3
 ollama pull nomic-embed-text
 
 # Start ChromaDB

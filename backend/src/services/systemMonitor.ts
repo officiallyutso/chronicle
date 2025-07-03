@@ -38,6 +38,7 @@ export class SystemMonitor extends EventEmitter {
   private isSystemProcess(appName: string): boolean {
     const systemProcesses = [
       'WMIC.exe',
+      'JCMD.exe',
       'wmic.exe', 
       'cmd.exe',
       'conhost.exe',

@@ -21,49 +21,57 @@ export async function summarizeProject(context: vscode.ExtensionContext) {
         cancellable: false
     }, async () => {
         const root = workspace.uri.fsPath;
+        const projectName = path.basename(root);
         const fileSummaries: string[] = [];
         const folderSummaries: Record<string, string[]> = {};
         const folderSummariesText: Record<string, string> = {};
 
-        await collectAndSummarizeFiles(root, fileSummaries, folderSummaries, 0, 1); // One layer deep
+        await collectAndSummarizeFiles(root, fileSummaries, folderSummaries, 0, 1);
 
-        // Summarize each folder based on its files
+        // Generate folder summaries
         for (const [folder, summaries] of Object.entries(folderSummaries)) {
-            const prompt = `${SYSTEM_PREFIX}\n\nHere is a list of files and what each does inside the folder '${folder}':\n\n${summaries.join('\n')}
-Now give a specific and concise 6–8 line summary of this folder's role in the project. Avoid guessing or generic language.`;
+        const prompt = `${SYSTEM_PREFIX}\n\nHere is a list of files and what each does inside the folder '${folder}':\n\n${summaries.join('\n')}
 
-            const folderSummary = await callOllama(prompt);
-            folderSummariesText[folder] = folderSummary.trim();
+    Now give a specific and concise 6–8 line summary of this folder's role in the project.`;
+        const folderSummary = await callOllama(prompt);
+        folderSummariesText[folder] = folderSummary.trim();
         }
 
-        if (Object.keys(folderSummariesText).length === 0) {
-            return vscode.window.showErrorMessage("No folder summaries were generated. Check if the project has valid source files.");
-        }
-
-        // Combine folder summaries into prompt for project-level summary
+        // Generate project summary
         const folderSummaryCombined = Object.entries(folderSummariesText)
-            .map(([folder, summary]) => `## ${folder}\n${summary}`)
-            .join('\n\n');
+        .map(([folder, summary]) => `## ${folder}\n${summary}`)
+        .join('\n\n');
 
         const projectPrompt = `${SYSTEM_PREFIX}\n\nBelow are summaries of folders from a real software project:\n\n${folderSummaryCombined}
-        Write a clear, structured 15–20 line summary that explains the actual purpose of the entire project.
-       Focus on architecture, functionality, and component flow based ONLY on the data provided.`;
+
+    Write a clear, structured 15–20 line summary that explains the actual purpose of the entire project.`;
 
         const projectSummary = await callOllama(projectPrompt);
 
-        // Construct final Markdown output
-        const fullMarkdown =
-            `# Project Summary\n\n${projectSummary.trim()}\n\n---\n\n` +
-            `# Folder Summaries\n\n` +
-            Object.entries(folderSummariesText)
-                .map(([folder, summary]) =>
-                    `<details>\n<summary><strong>${folder}</strong></summary>\n\n${summary}\n\n</details>`
-                ).join('\n\n');
+        // Prepare data for backend
+        const projectData = {
+        projectId: `${projectName}_${Date.now()}`,
+        name: projectName,
+        projectSummary: projectSummary.trim(),
+        fileSummaries,
+        folderSummaries: folderSummariesText,
+        workspacePath: root
+        };
+
+        // Send to backend
+        await sendProjectToBackend(projectData);
+
+        // Create and show the markdown file as before
+        const fullMarkdown = `# Project Summary\n\n${projectSummary.trim()}\n\n---\n\n# Folder Summaries\n\n` +
+        Object.entries(folderSummariesText)
+            .map(([folder, summary]) => `\n${folder}\n\n${summary}\n\n`)
+            .join('\n\n');
 
         const doc = await vscode.workspace.openTextDocument({
-            content: fullMarkdown,
-            language: 'markdown'
+        content: fullMarkdown,
+        language: 'markdown'
         });
+
         vscode.window.showTextDocument(doc, { preview: false });
     });
 }
@@ -123,3 +131,30 @@ export async function callOllama(prompt: string): Promise<string> {
     const data = await response.json() as { response: string };
     return data.response.trim();
 }
+
+async function sendProjectToBackend(projectData: any): Promise<void> {
+  try {
+    // Debug: Log what we're sending
+    console.log('Sending project data:', JSON.stringify(projectData, null, 2));
+    
+    const response = await fetch('http://localhost:3001/api/projects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(projectData)
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('Backend response:', result);
+      vscode.window.showInformationMessage('Project summary sent to Chronicle app!');
+    } else {
+      const errorText = await response.text();
+      console.error('Failed to send project to backend:', response.status, errorText);
+    }
+  } catch (error) {
+    console.error('Error sending project to backend:', error);
+  }
+}
+

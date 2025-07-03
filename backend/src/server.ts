@@ -444,6 +444,261 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+
+async function generateReadmeFromProject(project: any): Promise<string> {
+  const fileSummariesText = project.fileSummaries
+    .map((summary: string) => `- ${summary}`)
+    .join('\n');
+
+  const folderSummariesText = Object.entries(project.folderSummaries || {})
+    .map(([folder, summary]) => `## ${folder}\n${summary}`)
+    .join('\n\n');
+
+  // Detect project type and technologies
+  const projectType = detectProjectType(project);
+  const technologies = detectTechnologies(project);
+  
+  const enhancedPrompt = `You are an expert technical writer specializing in creating comprehensive, engaging GitHub README files. Generate a professional README.md that follows GitHub best practices.
+
+PROJECT ANALYSIS:
+- Project Name: ${project.name}
+- Project Type: ${projectType}
+- Technologies: ${technologies.join(', ')}
+
+PROJECT OVERVIEW:
+${project.projectSummary}
+
+FOLDER STRUCTURE:
+${folderSummariesText}
+
+DETAILED FILE ANALYSIS:
+${fileSummariesText}
+
+REQUIREMENTS:
+Create a comprehensive README.md with the following structure:
+
+# ${project.name}
+
+## Overview
+Write an engaging 2-3 paragraph description that explains:
+- What the project does
+- Why it exists (problem it solves)
+- Who it's for
+- Key value proposition
+
+## Features
+Create a bulleted list of key features based on the code analysis. Use emojis and be specific about functionality.
+
+## Tech Stack
+List the technologies, frameworks, and tools used (based on file analysis).
+
+## Project Structure
+\`\`\`
+${project.name}/
+├── [create a visual tree structure based on folder summaries]
+\`\`\`
+
+## Getting Started
+
+### Prerequisites
+List required software, versions, and dependencies.
+
+### Installation
+Provide step-by-step installation instructions with code blocks.
+
+### Configuration
+Explain any configuration files or environment variables needed.
+
+## Usage
+Provide clear usage examples with code snippets and expected outputs.
+
+## API Documentation
+(If applicable) Document key API endpoints, parameters, and responses.
+
+## Contributing
+Standard contribution guidelines with:
+- How to fork and clone
+- Development setup
+- Code style guidelines
+- Pull request process
+
+## License
+Specify the license (default to MIT if not specified).
+
+## Support
+Contact information and support channels.
+
+FORMATTING REQUIREMENTS:
+- Use GitHub-flavored markdown
+- Include appropriate badges (build status, version, license)
+- Use less emojis for section headers
+- Include code syntax highlighting
+- Make it visually appealing and scannable
+- Ensure all sections are relevant to the actual codebase
+- Be specific, not generic - reference actual files and functionality
+- Include installation commands specific to the project type
+- Add usage examples that reflect the actual code
+
+Make this README stand out and be genuinely helpful for developers who want to understand, install, and contribute to this project.`;
+
+  try {
+    const response = await enhancedAgentService.processConversationalQuery(enhancedPrompt);
+    return response.output;
+  } catch (error) {
+    console.error('README generation error:', error);
+    return 'Failed to generate README. Please ensure Ollama is running.';
+  }
+}
+
+// Helper functions to detect project characteristics
+function detectProjectType(project: any): string {
+  const summaries = JSON.stringify(project.fileSummaries).toLowerCase();
+  const folders = Object.keys(project.folderSummaries).join(' ').toLowerCase();
+  
+  if (summaries.includes('react') || summaries.includes('jsx') || summaries.includes('tsx')) {
+    return 'React Application';
+  } else if (summaries.includes('vue')) {
+    return 'Vue.js Application';
+  } else if (summaries.includes('angular')) {
+    return 'Angular Application';
+  } else if (summaries.includes('express') || summaries.includes('fastify')) {
+    return 'Node.js Backend API';
+  } else if (summaries.includes('flask') || summaries.includes('django')) {
+    return 'Python Web Application';
+  } else if (summaries.includes('spring') || summaries.includes('java')) {
+    return 'Java Application';
+  } else if (folders.includes('mobile') || summaries.includes('flutter') || summaries.includes('react native')) {
+    return 'Mobile Application';
+  } else if (summaries.includes('electron')) {
+    return 'Desktop Application';
+  } else {
+    return 'Software Project';
+  }
+}
+
+function detectTechnologies(project: any): string[] {
+  const technologies = new Set<string>();
+  const content = JSON.stringify(project).toLowerCase();
+  
+  // Frontend frameworks
+  if (content.includes('react')) technologies.add('React');
+  if (content.includes('vue')) technologies.add('Vue.js');
+  if (content.includes('angular')) technologies.add('Angular');
+  if (content.includes('svelte')) technologies.add('Svelte');
+  
+  // Backend frameworks
+  if (content.includes('express')) technologies.add('Express.js');
+  if (content.includes('fastify')) technologies.add('Fastify');
+  if (content.includes('flask')) technologies.add('Flask');
+  if (content.includes('django')) technologies.add('Django');
+  if (content.includes('spring')) technologies.add('Spring Boot');
+  
+  // Languages
+  if (content.includes('typescript') || content.includes('.ts')) technologies.add('TypeScript');
+  if (content.includes('javascript') || content.includes('.js')) technologies.add('JavaScript');
+  if (content.includes('python') || content.includes('.py')) technologies.add('Python');
+  if (content.includes('java')) technologies.add('Java');
+  if (content.includes('rust')) technologies.add('Rust');
+  if (content.includes('go')) technologies.add('Go');
+  
+  // Databases
+  if (content.includes('mongodb')) technologies.add('MongoDB');
+  if (content.includes('postgresql') || content.includes('postgres')) technologies.add('PostgreSQL');
+  if (content.includes('mysql')) technologies.add('MySQL');
+  if (content.includes('redis')) technologies.add('Redis');
+  if (content.includes('chromadb')) technologies.add('ChromaDB');
+  
+  // Tools
+  if (content.includes('docker')) technologies.add('Docker');
+  if (content.includes('kubernetes')) technologies.add('Kubernetes');
+  if (content.includes('webpack')) technologies.add('Webpack');
+  if (content.includes('vite')) technologies.add('Vite');
+  if (content.includes('tailwind')) technologies.add('Tailwind CSS');
+  
+  return Array.from(technologies);
+}
+
+
+// Store project summaries from VS Code extension
+app.post('/api/projects', async (req, res) => {
+  try {
+    console.log('Received project data:', JSON.stringify(req.body, null, 2)); // Debug log
+    
+    const { projectId, name, projectSummary, fileSummaries, folderSummaries, workspacePath } = req.body;
+    
+    const projectData = {
+      id: projectId || `project_${Date.now()}`,
+      name: name || 'Unknown Project',
+      projectSummary: projectSummary || 'No summary available',
+      fileSummaries: fileSummaries || [],
+      folderSummaries: folderSummaries || {},
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      workspacePath: workspacePath || ''
+    };
+
+    console.log('Storing project data:', JSON.stringify(projectData, null, 2)); // Debug log
+
+    // Store in ChromaDB
+    await vectorStore.storeProjectSummary(projectData);
+    
+    res.json({ success: true, projectId: projectData.id });
+  } catch (error) {
+    console.error('Failed to store project summary:', error);
+    res.status(500).json({ error: 'Failed to store project summary' });
+  }
+});
+
+
+// Get all projects
+app.get('/api/projects', async (req, res) => {
+  try {
+    console.log('Fetching all projects...'); // Debug log
+    const projects = await vectorStore.getAllProjects();
+    console.log('Projects found:', projects.length); // Debug log
+    console.log('Projects data:', projects); // Debug log
+    res.json(projects);
+  } catch (error) {
+    console.error('Failed to fetch projects:', error);
+    res.status(500).json({ error: 'Failed to fetch projects' });
+  }
+});
+
+// Get specific project
+app.get('/api/projects/:id', async (req, res) => {
+  try {
+    console.log('Fetching project:', req.params.id); // Debug log
+    
+    const project = await vectorStore.getProject(req.params.id);
+    
+    if (!project) {
+      console.log('Project not found:', req.params.id);
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
+    console.log('Returning project:', JSON.stringify(project, null, 2)); // Debug log
+    res.json(project);
+  } catch (error) {
+    console.error('Failed to fetch project:', error);
+    res.status(500).json({ error: 'Failed to fetch project' });
+  }
+});
+
+// Generate README for project
+app.post('/api/projects/:id/readme', async (req, res) => {
+  try {
+    const project = await vectorStore.getProject(req.params.id);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const readme = await generateReadmeFromProject(project);
+    res.json({ readme });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate README' });
+  }
+});
+
 // Start the HTTP + WS server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, async () => {

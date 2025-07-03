@@ -79,6 +79,96 @@ export class VectorStore {
     }));
   }
 
+  async storeProjectSummary(projectData: any): Promise<void> {
+  if (!this.chroma) await this.initialize();
+  
+  const document = new Document({
+    pageContent: this.projectToText(projectData),
+    metadata: {
+      id: projectData.id,
+      type: 'project_summary',
+      name: projectData.name,
+      createdAt: projectData.createdAt,
+      updatedAt: projectData.updatedAt,
+      projectData: JSON.stringify(projectData)
+    }
+  });
+
+  try {
+    await this.chroma!.addDocuments([document], { ids: [projectData.id] });
+    console.log(`Project summary stored: ${projectData.name}`);
+  } catch (error) {
+    console.error('Failed to store project summary:', error);
+  }
+}
+
+async getProject(id: string): Promise<any | null> {
+  if (!this.chroma) await this.initialize();
+  
+  try {
+    const collection = (this.chroma as any).collection;
+    
+    // Fix: Use $and operator for compound where clauses
+    const results = await collection.get({
+      where: {
+        "$and": [
+          { "id": id },
+          { "type": "project_summary" }
+        ]
+      },
+      include: ['metadatas']
+    });
+
+    console.log(`Getting project ${id}:`, results);
+
+    if (!results.metadatas || results.metadatas.length === 0) {
+      console.log(`Project ${id} not found`);
+      return null;
+    }
+    
+    const projectData = JSON.parse(results.metadatas[0].projectData);
+    return projectData;
+  } catch (error) {
+    console.error('Failed to get project:', error);
+    return null;
+  }
+}
+
+async getAllProjects(): Promise<any[]> {
+  if (!this.chroma) await this.initialize();
+  
+  try {
+    const collection = (this.chroma as any).collection;
+    
+    // Fix: Use proper where clause syntax
+    const results = await collection.get({
+      where: { "type": { "$eq": "project_summary" } },
+      include: ['metadatas']
+    });
+
+    console.log('Raw ChromaDB results:', results);
+    
+    if (!results.metadatas || results.metadatas.length === 0) {
+      console.log('No project summaries found in ChromaDB');
+      return [];
+    }
+
+    return results.metadatas.map((metadata: any) => ({
+      id: metadata.id,
+      name: metadata.name,
+      createdAt: metadata.createdAt,
+      updatedAt: metadata.updatedAt
+    }));
+  } catch (error) {
+    console.error('Failed to get all projects:', error);
+    return [];
+  }
+}
+
+private projectToText(projectData: any): string {
+  return `Project: ${projectData.name}\n\nSummary: ${projectData.projectSummary}\n\nFiles: ${projectData.fileSummaries.length} files summarized`;
+}
+
 
   private eventToText(event: ActivityEvent): string {
     const timestamp = new Date(event.timestamp).toLocaleString();
