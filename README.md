@@ -872,11 +872,11 @@ cd chronicle
 # Install dependencies
 npm install
 
-# Build TypeScript for Electron
-npm run build:electron
+# Run TypeScript for Electron
+npm run dev:all
 ```
 
-**3. Setup Backend Services**
+**3. Setup Backend MicroServices**
 ```bash
 # Navigate to backend directory
 cd backend
@@ -890,7 +890,7 @@ npm run dev
 
 **4. Setup ChromaDB Vector Database**
 ```bash
-# Install ChromaDB
+# Install ChromaDB (in root dir)
 pip install chromadb
 
 # Start ChromaDB server
@@ -909,7 +909,7 @@ npm install
 npm run compile
 
 # Install in VS Code
-# Method 1: Press F5 to run in development mode
+# Method 1: Press F5 to run in development mode (preferred)
 # Method 2: Package and install
 vsce package
 code --install-extension chronicle-*.vsix
