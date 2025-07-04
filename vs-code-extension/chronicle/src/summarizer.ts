@@ -30,10 +30,8 @@ export async function summarizeProject(context: vscode.ExtensionContext) {
 
         // Generate folder summaries
         for (const [folder, summaries] of Object.entries(folderSummaries)) {
-            const prompt = `${SYSTEM_PREFIX}\n\nHere is a list of files and what each does inside the folder '${folder}':\n\n${summaries.join('\n')}
-            Now give a specific and concise 6–8 line summary of this folder's role in the project. Avoid guessing or generic language.`;
-
-    Now give a specific and concise 6–8 line summary of this folder's role in the project.`;
+        const prompt = `${SYSTEM_PREFIX}\n\nHere is a list of files and what each does inside the folder '${folder}':\n\n${summaries.join('\n')}
+        Now give a specific and concise 6–8 line summary of this folder's role in the project.`;
         const folderSummary = await callOllama(prompt);
         folderSummariesText[folder] = folderSummary.trim();
         }
@@ -44,8 +42,7 @@ export async function summarizeProject(context: vscode.ExtensionContext) {
         .join('\n\n');
 
         const projectPrompt = `${SYSTEM_PREFIX}\n\nBelow are summaries of folders from a real software project:\n\n${folderSummaryCombined}
-        Write a clear, structured 15–20 line summary that explains the actual purpose of the entire project.
-        Focus on architecture, functionality, and component flow based ONLY on the data provided.`;
+        Write a clear, structured 15–20 line summary that explains the actual purpose of the entire project.`;
 
         const projectSummary = await callOllama(projectPrompt);
 
