@@ -1,0 +1,14 @@
+{
+  "name": "com.chronicle.dialoguegenerator",
+  "displayName": "Chronicle-NPC Dialogue Generator",
+  "version": "1.0.0",
+  "unity": "6000.1.4f1",
+  "description": "A Unity Editor tool to generate and manage AI-powered NPC dialogue.",
+  "author": {
+    "name": "Vinayak_RZ",
+    "email": "vinayakraizada@gmail.com"
+  },
+  "keywords": [
+    "npc", "ai", "dialogue", "editor", "tool"
+  ]
+}
