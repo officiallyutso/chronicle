@@ -176,33 +176,31 @@ graph TB
 
 | Description | Screenshot |
 |-------------|------------|
-| **Dashboard** - Main interface showing overview of your daily activities and statistics | <img src="https://github.com/user-attachments/assets/a0ef5a2e-43c0-4d9e-bd3e-8e6d9ac56179" width="400"> |
-| **Activity Panel** - View and manage your tracked activities with detailed information | <img src="https://github.com/user-attachments/assets/f6612f23-5af7-4da8-9adc-38cd34997d69" width="400"> |
-| **Activity Details** - Detailed view of individual activities with time tracking and metadata | <img src="https://github.com/user-attachments/assets/9a69dbdf-9b97-42cb-aeca-12a28edda50e" width="400"> |
-| **Activity Sorting** - Sort and filter activities by different criteria for better organization | <img src="https://github.com/user-attachments/assets/1a8e088d-416d-469f-82ce-9b30c406c1cc" width="400"> |
-| **Activity Based Narrative - Tone Selection** - Choose the tone and style for generating narratives from your activities | <img src="https://github.com/user-attachments/assets/ddbedafd-e2a5-4ab6-a6d9-401a310bf416" width="400"> |
-| **Activity Based Narrative - Story Generation** - Generate compelling stories and narratives based on your tracked activities | <img src="https://github.com/user-attachments/assets/1c8a566e-f1f9-47a5-a5c4-f7e212ec41ec" width="400"> |
-| **Activity Based Narrative - Achievement Summary** - View achievements and milestones based on your activity patterns | <img src="https://github.com/user-attachments/assets/44457de6-0171-40ea-a50b-1b425b57c0d0" width="400"> |
-| **Agentic AI Context Chat** - Chat with AI about your daily activities and get insights from your data | <img src="https://github.com/user-attachments/assets/1f74b766-c82f-4084-8ac6-13e77f25ee02" width="400"> |
-| **AI Chat Interface** - Interactive chat interface for discussing your activities with AI assistance | <img src="https://github.com/user-attachments/assets/ce19d11a-67a0-4e3c-8776-8d9c8248f2af" width="400"> |
-| **AI Data Context** - AI shows the specific data it's referencing when providing insights about your activities | <img src="https://github.com/user-attachments/assets/398628eb-7958-4ea3-9193-70ea832cbe2a" width="400"> |
-| **Project AI - VS Code Integration** - Automatically detects and connects to your VS Code projects for enhanced tracking | <img src="https://github.com/user-attachments/assets/3f8622b5-19d7-47e4-9af5-af5800f6d1e1" width="400"> |
-| **Project AI - Project Summary** - Get comprehensive summaries of your projects including structure and progress | <img src="https://github.com/user-attachments/assets/5d03869f-e81e-43f5-b319-a813a5eed191" width="400"> |
-| **Project AI - File Structure** - View detailed file structure and organization of your projects | <img src="https://github.com/user-attachments/assets/ad031c26-c54f-48f6-862b-5144cf821735" width="400"> |
-| **Project AI - README Generation** - Generate perfect README files automatically based on your project structure and activity | <img src="https://github.com/user-attachments/assets/c798dcd0-bded-4eae-b6cc-99970070f2ba" width="400"> |
-| **Settings & Clear Data** - Manage application settings and clear your data when needed | <img src="https://github.com/user-attachments/assets/8ac70688-c174-4c4d-aba8-30f78fd336bb" width="400"> |
+| **Dashboard** - Main interface showing overview of your daily activities and statistics | <img src="https://github.com/user-attachments/assets/a0ef5a2e-43c0-4d9e-bd3e-8e6d9ac56179" width="600"> |
+| **Activity Panel** - View and manage your tracked activities with detailed information | <img src="https://github.com/user-attachments/assets/f6612f23-5af7-4da8-9adc-38cd34997d69" width="600"> |
+| **Activity Details** - Detailed view of individual activities with time tracking and metadata | <img src="https://github.com/user-attachments/assets/9a69dbdf-9b97-42cb-aeca-12a28edda50e" width="600"> |
+| **Activity Sorting** - Sort and filter activities by different criteria for better organization | <img src="https://github.com/user-attachments/assets/1a8e088d-416d-469f-82ce-9b30c406c1cc" width="600"> |
+| **Activity Based Narrative - Tone Selection** - Choose the tone and style for generating narratives from your activities | <img src="https://github.com/user-attachments/assets/ddbedafd-e2a5-4ab6-a6d9-401a310bf416" width="600"> |
+| **Activity Based Narrative - Story Generation** - Generate compelling stories and narratives based on your tracked activities | <img src="https://github.com/user-attachments/assets/1c8a566e-f1f9-47a5-a5c4-f7e212ec41ec" width="600"> |
+| **Activity Based Narrative - Achievement Summary** - View achievements and milestones based on your activity patterns | <img src="https://github.com/user-attachments/assets/44457de6-0171-40ea-a50b-1b425b57c0d0" width="600"> |
+| **Agentic AI Context Chat** - Chat with AI about your daily activities and get insights from your data | <img src="https://github.com/user-attachments/assets/1f74b766-c82f-4084-8ac6-13e77f25ee02" width="600"> |
+| **AI Chat Interface** - Interactive chat interface for discussing your activities with AI assistance | <img src="https://github.com/user-attachments/assets/ce19d11a-67a0-4e3c-8776-8d9c8248f2af" width="600"> |
+| **AI Data Context** - AI shows the specific data it's referencing when providing insights about your activities | <img src="https://github.com/user-attachments/assets/398628eb-7958-4ea3-9193-70ea832cbe2a" width="600"> |
+| **Project AI - VS Code Integration** - Automatically detects and connects to your VS Code projects for enhanced tracking | <img src="https://github.com/user-attachments/assets/3f8622b5-19d7-47e4-9af5-af5800f6d1e1" width="600"> |
+| **Project AI - Project Summary** - Get comprehensive summaries of your projects including structure and progress | <img src="https://github.com/user-attachments/assets/5d03869f-e81e-43f5-b319-a813a5eed191" width="600"> |
+| **Project AI - File Structure** - View detailed file structure and organization of your projects | <img src="https://github.com/user-attachments/assets/ad031c26-c54f-48f6-862b-5144cf821735" width="600"> |
+| **Project AI - README Generation** - Generate perfect README files automatically based on your project structure and activity | <img src="https://github.com/user-attachments/assets/c798dcd0-bded-4eae-b6cc-99970070f2ba" width="600"> |
+| **Settings & Clear Data** - Manage application settings and clear your data when needed | <img src="https://github.com/user-attachments/assets/8ac70688-c174-4c4d-aba8-30f78fd336bb" width="600"> |
 | **Browser Extension** - Track your web browsing activities and integrate with the main application | <img src="https://github.com/user-attachments/assets/faab72a9-2220-46ea-9ccc-f47851f5eebd" height="400"> |
 | **Browser Extension Integration** - Seamless integration between browser extension and main application | <img src="https://github.com/user-attachments/assets/46cf3aa5-72b7-4fa7-9653-a88467899b20" height="400"> |
-| **VS Code Extension - Available Commands** - View all available commands and features within the VS Code extension | <img src="https://github.com/user-attachments/assets/56103246-74ca-4f0e-9e43-0cd6fcccdff3" width="400"> |
-| **VS Code Extension - Activity Log** - Track your coding activities directly within VS Code with detailed logging | <img src="https://github.com/user-attachments/assets/8bf979d9-d57e-452c-ba78-901ae23194fd" width="400"> |
-| **VS Code Extension - Project Summary** - Get project summaries and insights directly within your VS Code workspace | <img src="https://github.com/user-attachments/assets/fc4b20ac-f2d9-4937-8027-a7cfc145b0f5" width="400"> |
-| **UNITY - AI package** - Package to generate npc characters - Agentic AI  | <img src="https://github.com/user-attachments/assets/d39735f4-857b-472a-a105-7d6f1f214634" width="400"> |
-| **UNITY - NPC AI** - Package to generate scriptable npc characters - Agentic AI  | <img src="https://github.com/user-attachments/assets/ec63e718-f1b9-48fd-bb25-6f363b75686a" width="600"> |
+| **VS Code Extension - Available Commands** - View all available commands and features within the VS Code extension | <img src="https://github.com/user-attachments/assets/56103246-74ca-4f0e-9e43-0cd6fcccdff3" width="600"> |
+| **VS Code Extension - Activity Log** - Track your coding activities directly within VS Code with detailed logging | <img src="https://github.com/user-attachments/assets/8bf979d9-d57e-452c-ba78-901ae23194fd" width="600"> |
+| **VS Code Extension - Project Summary** - Get project summaries and insights directly within your VS Code workspace | <img src="https://github.com/user-attachments/assets/fc4b20ac-f2d9-4937-8027-a7cfc145b0f5" width="600"> |
+| **UNITY - AI package** - Package to generate npc characters - Agentic AI  | <img src="https://github.com/user-attachments/assets/d39735f4-857b-472a-a105-7d6f1f214634" width="600"> |
+| **UNITY - NPC AI** - Package to generate scriptable npc characters - Agentic AI  | <img src="https://github.com/user-attachments/assets/476603d0-20b9-4986-8971-1a9b77ec9799" width="600"> |
+| **UNITY - In Game Demo** - Example of how the package can be used to make AI games with real time contextual decision making  | <img src="https://github.com/user-attachments/assets/77d7975f-d199-458a-be97-e37f2ab22fb8" width="600"> |
 
 ---
-
-
-
 
 
 ## VS Code Extension Architecture
