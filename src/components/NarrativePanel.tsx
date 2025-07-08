@@ -1,5 +1,28 @@
 import React from 'react';
 import { NarrativeStyle } from '../services/ollamaService';
+import formatStory from '../assets/format-story.jpg';
+import formatLog from '../assets/format-log.jpg';
+import formatAchievements from '../assets/format-achievements.jpg';
+import formatSummary from '../assets/format-summary.jpg';
+import toneCasual from '../assets/tone-casual.jpg';
+import toneProfessional from '../assets/tone-proffesional.jpg';
+import toneGamified from '../assets/tone-gamified.jpg';
+import toneTechnical from '../assets/tone-technical.jpg'
+
+const formatImages: Record<string, string> = {
+  story: formatStory,
+  log: formatLog,
+  achievements: formatAchievements,
+  summary: formatSummary,
+};
+
+const toneImages: Record<string, string> = {
+  casual: toneCasual,
+  professional: toneProfessional,
+  gamified: toneGamified,
+  technical: toneTechnical,
+};
+
 
 interface NarrativePanelProps {
   narrative: string;
@@ -29,104 +52,102 @@ export const NarrativePanel: React.FC<NarrativePanelProps> = ({
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      // You could add a toast notification here
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-14">
+      {/* Tagline */}
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-cyan-600">Craft Your Digital Journey</h1>
+        <p className="text-gray-500 mt-2">Shape your activity into stories worth remembering ✨</p>
+      </div>
+
       {/* Style Controls */}
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <h2 className="text-xl font-bold text-white mb-4">Narrative Settings</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="bg-white rounded-3xl p-10 border border-gray-200 shadow-xl">
+        <h2 className="text-3xl font-bold text-gray-900 mb-8">Customize Your Narrative</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           {/* Tone Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-3">Narrative Tone</label>
-            <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">Select Tone</h3>
+            <div className="grid grid-cols-2 gap-4">
               {(['casual', 'professional', 'gamified', 'technical'] as const).map((tone) => (
-                <label key={tone} className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="tone"
-                    value={tone}
-                    checked={narrativeStyle.tone === tone}
-                    onChange={() => handleToneChange(tone)}
-                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500"
-                  />
-                  <span className="text-white capitalize">{tone}</span>
-                </label>
+                <div
+                  key={tone}
+                  className={`flex flex-col items-center p-4 rounded-xl border transition-all duration-200 shadow-md hover:shadow-xl ${narrativeStyle.tone === tone ? 'border-cyan-500 bg-cyan-50 scale-105' : 'border-gray-200 hover:border-cyan-300'} cursor-pointer`}
+                  onClick={() => handleToneChange(tone)}
+                >
+                  <img src={toneImages[tone]} alt={tone} className="w-30 h-30 mb-2" />
+                  <span className="capitalize text-gray-800 text-sm font-medium">{tone}</span>
+                </div>
               ))}
             </div>
           </div>
 
           {/* Format Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-3">Narrative Format</label>
-            <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">Select Format</h3>
+            <div className="grid grid-cols-2 gap-4">
               {(['story', 'log', 'achievements', 'summary'] as const).map((format) => (
-                <label key={format} className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="format"
-                    value={format}
-                    checked={narrativeStyle.format === format}
-                    onChange={() => handleFormatChange(format)}
-                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500"
-                  />
-                  <span className="text-white capitalize">{format}</span>
-                </label>
+                <div
+                  key={format}
+                  className={`flex flex-col items-center p-4 rounded-xl border transition-all duration-200 shadow-md hover:shadow-xl ${narrativeStyle.format === format ? 'border-cyan-500 bg-cyan-50 scale-105' : 'border-gray-200 hover:border-cyan-300'} cursor-pointer`}
+                  onClick={() => handleFormatChange(format)}
+                >
+                  <img src={formatImages[format]} alt={format} className="w-30 h-30 mb-2" />
+                  <span className="capitalize text-gray-800 text-sm font-medium">{format}</span>
+                </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-10 flex justify-center">
           <button
             onClick={onGenerate}
             disabled={isGenerating}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-700 hover:to-purple-700 transition-all"
+            className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-semibold disabled:opacity-50 hover:from-cyan-600 hover:to-blue-600 transition-all flex items-center space-x-2 animate-fade-in"
           >
             {isGenerating ? (
-              <span className="flex items-center space-x-2">
+              <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin rounded-full"></div>
                 <span>Generating Narrative...</span>
-              </span>
+              </>
             ) : (
-              'Generate New Narrative'
+              <>
+
+                <span>Generate Narrative</span>
+              </>
             )}
           </button>
         </div>
       </div>
 
       {/* Generated Narrative */}
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-white">Your Development Story</h2>
+      <div className="bg-gradient-to-br from-white via-gray-50 to-white rounded-3xl p-10 border border-gray-200 shadow-xl relative">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-cyan-700 flex items-center gap-2">📘 Your Chronicle</h2>
           {narrative && (
             <button
               onClick={() => copyToClipboard(narrative)}
-              className="px-3 py-1 bg-gray-700 text-gray-300 rounded text-sm hover:bg-gray-600 transition-colors"
+              className="px-4 py-2 bg-cyan-100 text-cyan-700 rounded hover:bg-cyan-200 text-sm"
             >
               Copy
             </button>
           )}
         </div>
-        
-        <div className="min-h-[200px]">
+        <div className="min-h-[200px] max-w-3xl mx-auto px-8 py-8 bg-white rounded-xl border border-gray-100 shadow-inner leading-relaxed text-gray-800 font-serif text-lg">
           {narrative ? (
-            <div className="prose prose-invert max-w-none">
-              <div className="whitespace-pre-wrap text-gray-300 leading-relaxed">
-                {narrative}
-              </div>
+            <div className="whitespace-pre-wrap prose prose-sm sm:prose-lg">
+              {narrative}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-48 text-gray-500">
+            <div className="flex items-center justify-center h-48 text-gray-400">
               <div className="text-center">
                 <div className="text-4xl mb-4">📖</div>
-                <p>Generate your first narrative to see your development story here</p>
+                <p>Generate your first narrative to see your development story here.</p>
               </div>
             </div>
           )}
@@ -135,24 +156,23 @@ export const NarrativePanel: React.FC<NarrativePanelProps> = ({
 
       {/* Achievements */}
       {achievements.length > 0 && (
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-white">Achievements Unlocked</h2>
+        <div className="bg-white rounded-3xl p-10 border border-gray-200 shadow-xl">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-cyan-700">Achievements Unlocked</h2>
             <button
               onClick={() => copyToClipboard(achievements.join('\n'))}
-              className="px-3 py-1 bg-gray-700 text-gray-300 rounded text-sm hover:bg-gray-600 transition-colors"
+              className="px-4 py-2 bg-cyan-100 text-cyan-700 rounded hover:bg-cyan-200 text-sm"
             >
               Copy All
             </button>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {achievements.map((achievement, index) => (
               <div
                 key={index}
-                className="p-4 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-lg border border-purple-500/30 hover:from-purple-600/30 hover:to-blue-600/30 transition-all"
+                className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-cyan-200 hover:from-blue-100 hover:to-cyan-100 transition-all"
               >
-                <p className="text-white">{achievement}</p>
+                <p className="text-gray-800">{achievement}</p>
               </div>
             ))}
           </div>
@@ -160,9 +180,9 @@ export const NarrativePanel: React.FC<NarrativePanelProps> = ({
       )}
 
       {/* Export Options */}
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <h3 className="text-lg font-semibold text-white mb-4">Export Options</h3>
-        <div className="flex flex-wrap gap-3">
+      <div className="bg-white rounded-3xl p-10 border border-gray-200 shadow-xl">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6">Export & Save</h3>
+        <div className="flex flex-wrap gap-4">
           <button
             onClick={() => {
               const data = {
@@ -180,11 +200,10 @@ export const NarrativePanel: React.FC<NarrativePanelProps> = ({
               URL.revokeObjectURL(url);
             }}
             disabled={!narrative}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+            className="px-5 py-2.5 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50"
           >
             Export as JSON
           </button>
-          
           <button
             onClick={() => {
               const content = `# Chronicle Development Narrative\n\nGenerated: ${new Date().toLocaleString()}\nStyle: ${narrativeStyle.tone} ${narrativeStyle.format}\n\n## Story\n\n${narrative}\n\n## Achievements\n\n${achievements.map(a => `- ${a}`).join('\n')}`;
@@ -197,7 +216,7 @@ export const NarrativePanel: React.FC<NarrativePanelProps> = ({
               URL.revokeObjectURL(url);
             }}
             disabled={!narrative}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors"
+            className="px-5 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
           >
             Export as Markdown
           </button>

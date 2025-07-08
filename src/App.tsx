@@ -9,6 +9,7 @@ import { NarrativePanel } from './components/NarrativePanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ChatPanel } from './components/ChatPanel';
 import { Projects } from './components/Projects';
+import ChronicleLogo from './assets/ChronicleLogo.png'; // adjust path if needed
 
 const App: React.FC = () => {
   const [agentApiService] = useState(() => new AgentApiService());
@@ -24,7 +25,7 @@ const App: React.FC = () => {
   });
   const [currentNarrative, setCurrentNarrative] = useState<string>('');
   const [achievements, setAchievements] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'activity' | 'narrative' |'projects'| 'chat' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'activity' | 'narrative' | 'projects' | 'chat' | 'settings'>('dashboard');
   const [narrativeStyle, setNarrativeStyle] = useState<NarrativeStyle>({ tone: 'gamified', format: 'story' });
   const [isGenerating, setIsGenerating] = useState(false);
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
@@ -53,7 +54,7 @@ const App: React.FC = () => {
     const loadInitialData = async () => {
       const initialEvents = await agentApiService.getEvents({ limit: 100 });
       setEvents(initialEvents);
-      
+
       const initialStats = await agentApiService.getStats();
       setStats(initialStats);
     };
@@ -125,46 +126,45 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-white text-gray-900 font-sans">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+      <header className="bg-white border-b border-gray-200 px-8 py-4 shadow-sm">
         <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent">
-              Chronicle
-            </h1>
-            <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-6">
+            {/* Logo and Title */}
+            <div className="flex items-center gap-3">
+              <img src={ChronicleLogo} alt="Chronicle Logo" className="w-8 h-8" />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-500 to-cyan-600 bg-clip-text text-transparent">
+                Chronicle
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-gray-500">
               <div className={`w-2 h-2 rounded-full ${stats.isTracking ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-sm text-gray-400">
-                {stats.isTracking ? 'Tracking Active' : 'Tracking Inactive'}
-              </span>
+              <span>{stats.isTracking ? 'Tracking Active' : 'Tracking Inactive'}</span>
             </div>
             {!backendConnected && (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2 text-sm text-red-500">
                 <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                <span className="text-sm text-red-400">Backend Offline</span>
+                <span>Backend Offline</span>
               </div>
             )}
           </div>
-          
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-400">
-              {ollamaAvailable ? (
-                <span className="text-green-400">AI Agent Connected</span>
-              ) : (
-                <span className="text-yellow-400">AI Agent Offline</span>
-              )}
-            </div>
+
+          <div className="flex items-center gap-5">
+            <span className={`text-sm ${ollamaAvailable ? 'text-green-600' : 'text-yellow-600'}`}>
+              {ollamaAvailable ? 'AI Agent Connected' : 'AI Agent Offline'}
+            </span>
             <button
               onClick={stats.isTracking ? handleStopTracking : handleStartTracking}
               disabled={!backendConnected}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                !backendConnected
-                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  : stats.isTracking 
-                    ? 'bg-red-600 hover:bg-red-700 text-white' 
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-all
+                ${!backendConnected
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : stats.isTracking
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-green-500 hover:bg-green-600 text-white'
+                }`}
             >
               {stats.isTracking ? 'Stop Tracking' : 'Start Tracking'}
             </button>
@@ -174,33 +174,29 @@ const App: React.FC = () => {
 
       {/* Backend Connection Warning */}
       {!backendConnected && (
-        <div className="bg-red-600/20 border-l-4 border-red-500 p-4 mx-6 mt-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <span className="text-red-400">⚠️</span>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-300">
-                Chronicle backend is not running. Please start the backend server on port 3001 to enable real system tracking.
-              </p>
-            </div>
+        <div className="bg-red-100 border-l-4 border-red-400 p-4 mx-8 mt-4 rounded-md shadow-sm">
+          <div className="flex items-start gap-3 text-sm text-red-700">
+            <span className="text-lg">⚠️</span>
+            <p>
+              Chronicle backend is not running. Please start the backend server on port 3001 to enable real system tracking.
+            </p>
           </div>
         </div>
       )}
 
       {/* Navigation */}
-      <nav className="bg-gray-800 border-b border-gray-700">
-        <div className="px-6 py-3">
-          <div className="flex space-x-6">
+      <nav className="bg-white border-b border-gray-200">
+        <div className="px-8 py-3">
+          <div className="flex justify-center space-x-4">
             {(['dashboard', 'activity', 'narrative', 'projects', 'chat', 'settings'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 py-2 rounded-lg font-medium transition-colors capitalize ${
-                  activeTab === tab
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
+                className={`px-4 py-2 rounded-md font-medium capitalize transition-all
+                  ${activeTab === tab
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
               >
                 {tab}
               </button>
@@ -221,11 +217,9 @@ const App: React.FC = () => {
             onClearData={handleClearData}
           />
         )}
-        
-        {activeTab === 'activity' && (
-          <ActivityFeed events={events} />
-        )}
-        
+
+        {activeTab === 'activity' && <ActivityFeed events={events} />}
+
         {activeTab === 'narrative' && (
           <NarrativePanel
             narrative={currentNarrative}
@@ -236,13 +230,13 @@ const App: React.FC = () => {
             onStyleChange={setNarrativeStyle}
           />
         )}
-        
+
         {activeTab === 'projects' && <Projects />}
 
         {activeTab === 'chat' && (
           <ChatPanel backendConnected={backendConnected} />
         )}
-        
+
         {activeTab === 'settings' && (
           <SettingsPanel
             narrativeStyle={narrativeStyle}
